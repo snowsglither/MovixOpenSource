@@ -1,0 +1,233 @@
+// src/utils/hosterRegistry.ts
+import {
+  BUILTIN_HOSTER_IDS,
+  type BuiltinHosterId,
+  type HosterId,
+} from '../types/sourcePriority';
+
+/**
+ * Patterns par défaut pour chaque hoster built-in. Stratégie :
+ *
+ *   - **Nom unique** (uqload, vidmoly, sibnet…) → pattern "mot" qui match
+ *     n'importe quel TLD automatiquement (`uqload` → uqload.cx, .is, .to,
+ *     .pro, .com, tout ce qui passe par du nouveau TLD). Pas de false positives
+ *     en pratique car ces noms ne sont pas des mots courants.
+ *   - **Voe** (3 lettres trop courtes + nombreux alias obfusqués) → `voe\\.`
+ *     (voe suivi d'un point) pour limiter les faux matches + liste explicite
+ *     des alias aléatoires connus. Les users peuvent ajouter de nouveaux
+ *     alias via l'éditeur regex quand Voe change encore de domaine.
+ *   - **DoodStream** → préfixes multi-variants (dood\\., d0000d, doodstream,
+ *     myvidplay, etc.) car les noms d'hôte varient beaucoup.
+ *
+ * Rajouter un nouveau domaine → ajouter l'entrée ici ; pas besoin de toucher
+ * aux consommateurs (detectHoster lit le registre via getEffectivePatterns).
+ */
+export const BUILTIN_HOSTER_PATTERNS: Record<BuiltinHosterId, string[]> = {
+  voe: [
+    // voe.<tld> — catch-all pour tous les TLD de la famille voe
+    'voe\\.',
+    // alias aléatoires (pas de "voe" dans le nom, requiert une liste explicite).
+    // Mis à jour avec les domaines observés dans les redirects 302 — voe tourne
+    // ses domaines de sortie ~mensuellement, user peut ajouter de nouveaux
+    // aliases via Settings → Priorité → Hosters custom & regex.
+    'ralphysuccessfull', 'claudiosepulchral',
+    'anthonysaline', 'auraleanline',
+    'letsupload', 'robertordercharacter',
+    'prepareddare', 'preferciseaccurate',
+    'conscientiousedu', 'effortlessexperim',
+    'timmaybealready',
+  ],
+  vidmoly: ['vidmoly'],
+  uqload: ['uqload'],
+  sibnet: ['sibnet'],
+  doodstream: [
+    'doodstream', 'd0000d', 'd000d',
+    'dood\\.', 'doodster',
+    'myvidplay', 'dsvplay', 'doply',
+    'ds2play', 'ds2video', 'dood2',
+  ],
+  seekstreaming: ['embedseek', 'embed4me', 'seekstreaming'],
+  smoothpre: ['smoothpre'],
+  minochinos: ['minochinos'],
+  vidzy: ['vidzy'],
+  darkibox: ['darkibox'],
+  supervideo: ['supervideo'],
+  dropload: ['dropload'],
+  oneupload: ['oneupload'],
+  fsvid: ['fsvid'],
+};
+
+/** Labels human-readable pour UI. */
+export const HOSTER_LABELS: Record<BuiltinHosterId, string> = {
+  voe: 'Voe',
+  vidmoly: 'Vidmoly',
+  uqload: 'Uqload',
+  sibnet: 'Sibnet',
+  doodstream: 'DoodStream',
+  seekstreaming: 'SeekStreaming',
+  smoothpre: 'SmoothPre',
+  minochinos: 'Minochinos',
+  vidzy: 'Vidzy',
+  darkibox: 'Darkibox',
+  supervideo: 'Supervideo',
+  dropload: 'Dropload',
+  oneupload: 'OneUpload',
+  fsvid: 'Fsvid',
+};
+
+function safeCompile(pattern: string): RegExp | null {
+  try { return new RegExp(pattern, 'i'); } catch { return null; }
+}
+
+// =====================================================================
+// Fix C — Memoization des patterns compilés
+// =====================================================================
+// Compiler un RegExp par call + par URL coûte cher (detectHoster est appelé
+// dans des boucles à plusieurs centaines d'items). On cache les patterns
+// compilés globalement, invalidés par un compteur bumpé à chaque changement
+// de prefs (le listener s'abonne à l'event custom dispatch par
+// `setSourcePriorityPrefs`). L'approche counter-based est choisie sur
+// WeakMap car les objets patternOverrides / customHosters peuvent être
+// recréés même quand leur contenu est identique (merge sur read).
+// =====================================================================
+
+let cacheEpoch = 0;
+let builtinCacheEpoch = -1;
+const builtinCompiled = new Map<BuiltinHosterId, RegExp[]>();
+
+let overrideCacheEpoch = -1;
+const overrideCompiled = new Map<BuiltinHosterId, RegExp[]>();
+
+let customCacheEpoch = -1;
+const customCompiled = new Map<string, RegExp[]>();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('movix-source-priority-changed', () => {
+    cacheEpoch += 1;
+  });
+}
+
+/**
+ * Patterns effectifs pour un hoster built-in.
+ *
+ * **Sémantique override (schema v2)** :
+ *   - `overrides[id]` ABSENT → on utilise la liste built-in actuelle
+ *     (dynamique — si on ajoute un nouveau pattern built-in dans une version
+ *     future, les users non-customisés en bénéficient automatiquement).
+ *   - `overrides[id]` PRÉSENT (non-vide) → REMPLACE totalement le built-in.
+ *     L'utilisateur est propriétaire de sa liste. Le UI copie les built-ins
+ *     dans l'override à la première édition et l'user peut alors éditer /
+ *     ajouter / supprimer librement (min 1 pattern garanti par l'UI).
+ *
+ * Les 2 caches (built-in vs override) sont invalidés par le même
+ * `cacheEpoch`, bumpé à chaque `movix-source-priority-changed`.
+ */
+export function getEffectivePatterns(
+  id: BuiltinHosterId,
+  overrides: Partial<Record<BuiltinHosterId, string[]>> = {},
+): RegExp[] {
+  const override = overrides[id];
+  if (override !== undefined && override.length > 0) {
+    // Chemin override : l'utilisateur est propriétaire de la liste.
+    if (overrideCacheEpoch !== cacheEpoch) {
+      overrideCompiled.clear();
+      overrideCacheEpoch = cacheEpoch;
+    }
+    if (overrideCompiled.has(id)) return overrideCompiled.get(id)!;
+    const compiled = override.map(safeCompile).filter((r): r is RegExp => r !== null);
+    overrideCompiled.set(id, compiled);
+    return compiled;
+  }
+  // Chemin built-in (dynamique).
+  if (builtinCacheEpoch !== cacheEpoch) {
+    builtinCompiled.clear();
+    builtinCacheEpoch = cacheEpoch;
+  }
+  if (builtinCompiled.has(id)) return builtinCompiled.get(id)!;
+  const compiled = (BUILTIN_HOSTER_PATTERNS[id] ?? [])
+    .map(safeCompile)
+    .filter((r): r is RegExp => r !== null);
+  builtinCompiled.set(id, compiled);
+  return compiled;
+}
+
+/**
+ * Helper UI : retourne la liste effective des patterns string pour un hoster.
+ * (Wrapper non-compilé de `getEffectivePatterns` — pour les consommateurs qui
+ * veulent afficher/éditer les patterns sans passer par RegExp.)
+ */
+export function getEffectivePatternStrings(
+  id: BuiltinHosterId,
+  overrides: Partial<Record<BuiltinHosterId, string[]>> = {},
+): string[] {
+  const override = overrides[id];
+  if (override !== undefined && override.length > 0) return override;
+  return BUILTIN_HOSTER_PATTERNS[id] ?? [];
+}
+
+/**
+ * Helper UI : l'utilisateur a-t-il customisé les patterns de ce hoster built-in ?
+ * (Présence de la clé dans patternOverrides = override actif.)
+ */
+export function isHosterCustomized(
+  id: BuiltinHosterId,
+  overrides: Partial<Record<BuiltinHosterId, string[]>> = {},
+): boolean {
+  const o = overrides[id];
+  return o !== undefined && o.length > 0;
+}
+
+function getCustomPatterns(customId: string, patterns: string[]): RegExp[] {
+  if (customCacheEpoch !== cacheEpoch) {
+    customCompiled.clear();
+    customCacheEpoch = cacheEpoch;
+  }
+  if (customCompiled.has(customId)) return customCompiled.get(customId)!;
+  const compiled = patterns.map(safeCompile).filter((r): r is RegExp => r !== null);
+  customCompiled.set(customId, compiled);
+  return compiled;
+}
+
+/**
+ * Détecte à quel hoster appartient une URL. Retourne null si aucun match.
+ *
+ * **Précédence built-in > custom (Fix D) :**
+ * Les patterns built-in (voe, uqload, etc.) sont testés EN PREMIER, dans l'ordre
+ * défini par `BUILTIN_HOSTER_IDS`. Un `customHoster` ne peut donc PAS "shadow" un
+ * built-in : si une URL matche à la fois un pattern custom et un pattern built-in,
+ * le built-in l'emporte toujours.
+ *
+ * **Pour override le domaine d'un built-in** (ex. ajouter un nouveau domaine VOE
+ * qu'on veut continuer à traiter comme VOE pour bénéficier de son extracteur) :
+ * utiliser `patternOverrides['voe']`, PAS un custom hoster.
+ *
+ * **Pour un hoster totalement inconnu** (pas d'extracteur serveur, jouable en iframe) :
+ * créer un custom hoster via `customHosters` — c'est son cas d'usage.
+ *
+ * @param url URL à détecter
+ * @param opts.patternOverrides patterns additionnels à ajouter aux built-in
+ * @param opts.customHosters hosters custom (uniquement si aucun built-in ne matche)
+ * @returns l'id built-in ou custom qui matche, ou null si aucun
+ */
+export function detectHoster(
+  url: string,
+  opts: {
+    patternOverrides?: Partial<Record<BuiltinHosterId, string[]>>;
+    customHosters?: Array<{ id: string; patterns: string[] }>;
+  } = {},
+): HosterId | null {
+  if (!url) return null;
+  const { patternOverrides = {}, customHosters = [] } = opts;
+
+  for (const id of BUILTIN_HOSTER_IDS) {
+    const patterns = getEffectivePatterns(id, patternOverrides);
+    if (patterns.some((re) => re.test(url))) return id;
+  }
+
+  for (const custom of customHosters) {
+    const patterns = getCustomPatterns(custom.id, custom.patterns);
+    if (patterns.some((re) => re.test(url))) return custom.id;
+  }
+
+  return null;
+}

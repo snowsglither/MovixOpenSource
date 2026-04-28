@@ -1,0 +1,286 @@
+// ============================================================================
+// Fallback domain — constantes injectées au build par vite.config.ts
+// ============================================================================
+const DEFAULT_MIRRORS = __MOVIX_DEFAULT_MIRRORS__;
+const CONFIG_URL = __MOVIX_CONFIG_URL__;
+const NAV_TIMEOUT_MS = 3000;
+const CONFIG_TIMEOUT_MS = 3000;
+const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
+
+// ============================================================================
+// Helpers fallback domain
+// ============================================================================
+
+// Dev/LAN guard : on skip toute logique de redirect miroir quand le SW tourne
+// sur localhost ou une IP privée. Sinon un backend absent en dev ou un HMR qui
+// bouge déclenche des fetch failures et balance le dev sur le miroir prod.
+function isLocalHost(hostname) {
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+  if (hostname.endsWith('.localhost')) return true;
+  if (/^10\./.test(hostname)) return true;
+  if (/^192\.168\./.test(hostname)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
+  return false;
+}
+
+function parseConfig(text) {
+  // Deux formats supportés :
+  // - JSON : {"mirrors":["movix.health",...]}  (dpaste.org, gist raw, etc.)
+  // - HTML : page rendue rentry.co/<slug> — on extrait les hostnames des <a href>
+  //   à l'intérieur du <article>. Rentry.co exige un access code pour /raw
+  //   depuis un durcissement anti-abuse ; on parse le HTML rendu à la place.
+  let hostnames = [];
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && Array.isArray(parsed.mirrors)) {
+      hostnames = parsed.mirrors
+        .map((m) => (typeof m === 'string' ? m.trim().toLowerCase() : ''));
+    }
+  } catch {
+    const articleMatch = text.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i);
+    const scope = articleMatch ? articleMatch[1] : text;
+    const hrefRe = /href=["']https?:\/\/([^/"'\s?#]+)/gi;
+    const seen = new Set();
+    let match;
+    while ((match = hrefRe.exec(scope)) !== null) {
+      const host = match[1].trim().toLowerCase();
+      if (!seen.has(host)) {
+        seen.add(host);
+        hostnames.push(host);
+      }
+    }
+  }
+
+  // Filtre : format hostname valide + exclusion de rentry.co (lien canonique,
+  // CDN-cgi, footer, etc. qui peuvent se retrouver dans le scope si <article>
+  // n'est pas trouvé).
+  const mirrors = hostnames
+    .filter((h) => h.length > 0 && HOSTNAME_RE.test(h))
+    .filter((h) => h !== 'rentry.co' && !h.endsWith('.rentry.co'));
+  if (mirrors.length === 0) return null;
+  return { mirrors };
+}
+
+async function loadMirrors() {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CONFIG_TIMEOUT_MS);
+    const res = await fetch(CONFIG_URL, { cache: 'no-store', signal: controller.signal });
+    clearTimeout(timer);
+    if (res.ok) {
+      const text = await res.text();
+      const config = parseConfig(text);
+      if (config) return config.mirrors;
+    }
+  } catch {}
+  return Array.isArray(DEFAULT_MIRRORS) ? DEFAULT_MIRRORS.slice() : [];
+}
+
+function pickNextMirror(mirrors, currentHost) {
+  const candidates = mirrors.filter((h) => h !== currentHost);
+  return candidates[0] || null;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderRedirectPage(url) {
+  const safe = escapeHtml(url);
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0; url=${safe}">
+  <title>Movix — Redirection</title>
+  <link rel="canonical" href="${safe}">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #000; color: #fff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      display: grid; place-items: center; }
+    .wrap { text-align: center; padding: 1.5rem; max-width: 420px; }
+    .logo { font-size: 2rem; font-weight: 900; color: #dc2626; letter-spacing: 0.1em; margin-bottom: 1.5rem; }
+    .spinner { width: 40px; height: 40px; margin: 0 auto 1.5rem;
+      border: 3px solid rgba(255,255,255,.1); border-top-color: #dc2626;
+      border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    p { margin: 0.5rem 0; color: #aaa; font-size: 0.9rem; line-height: 1.5; }
+    a { color: #dc2626; text-decoration: none; font-weight: 600; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">MOVIX</div>
+    <div class="spinner"></div>
+    <p>Redirection vers notre nouveau domaine…</p>
+    <p><a href="${safe}">Cliquer ici si rien ne se passe</a></p>
+  </div>
+  <script>
+    setTimeout(function () { window.location.replace(${JSON.stringify(url)}); }, 100);
+  </script>
+</body>
+</html>`;
+  return new Response(html, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
+function render503Page() {
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Movix — Indisponible</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #000; color: #fff;
+      font-family: system-ui, -apple-system, sans-serif; display: grid; place-items: center; }
+    .wrap { text-align: center; padding: 1.5rem; max-width: 420px; }
+    .logo { font-size: 2rem; font-weight: 900; color: #dc2626; letter-spacing: 0.1em; margin-bottom: 1rem; }
+    h1 { font-size: 1.2rem; margin: 0 0 1rem; }
+    p { margin: 0.5rem 0; color: #aaa; font-size: 0.9rem; line-height: 1.5; }
+    a { display: inline-block; margin-top: 1rem; background: #229ED9; color: #fff;
+      padding: 0.7rem 1.2rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">MOVIX</div>
+    <h1>Site temporairement indisponible</h1>
+    <p>Tous nos domaines connus sont inaccessibles depuis votre connexion.</p>
+    <p>Rejoins notre canal Telegram pour recevoir l'adresse du nouveau domaine.</p>
+    <a href="https://t.me/movix_site">Ouvrir Telegram</a>
+  </div>
+</body>
+</html>`;
+  return new Response(html, {
+    status: 503,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
+// ============================================================================
+// Lifecycle
+// ============================================================================
+
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+      await self.clients.claim();
+    })()
+  );
+});
+
+// ============================================================================
+// Push notifications (préservé tel quel)
+// ============================================================================
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  const data = event.data.json();
+  const baseUrl = self.location.origin;
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Movix', {
+      body: data.body || '',
+      icon: data.icon ? new URL(data.icon, baseUrl).href : `${baseUrl}/movix.png`,
+      badge: `${baseUrl}/movix.png`,
+      image: data.image || undefined,
+      data: data.data || {},
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const { contentType, contentId } = event.notification.data || {};
+  let url = '/';
+  if (contentType && contentId) {
+    url = contentType === 'movie' ? `/movie/${contentId}` : `/tv/${contentId}`;
+  }
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin)) {
+          client.focus();
+          client.navigate(url);
+          return;
+        }
+      }
+      return clients.openWindow(url);
+    })
+  );
+});
+
+// ============================================================================
+// Fetch — intercepte les navigations top-level pour fallback domain
+// ============================================================================
+
+async function handleNavigation(req) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), NAV_TIMEOUT_MS);
+  try {
+    const res = await fetch(req, { signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (err) {
+    clearTimeout(timer);
+    // Si l'utilisateur est offline, on laisse l'erreur réseau naturelle
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      throw err;
+    }
+    return await redirectToMirror();
+  }
+}
+
+async function redirectToMirror() {
+  const mirrors = await loadMirrors();
+  const target = pickNextMirror(mirrors, self.location.hostname);
+  if (!target) return render503Page();
+  const redirectUrl = `https://${target}/`;
+  return renderRedirectPage(redirectUrl);
+}
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.mode !== 'navigate' || req.method !== 'GET') return;
+  if (isLocalHost(self.location.hostname)) return;
+  event.respondWith(handleNavigation(req));
+});
+
+// ============================================================================
+// Message — handle force-redirect trigger depuis la page (block detection)
+// ============================================================================
+
+self.addEventListener('message', async (event) => {
+  const data = event.data;
+  if (!data || data.type !== 'MOVIX_FORCE_REDIRECT') return;
+  if (isLocalHost(self.location.hostname)) return;
+  try {
+    const mirrors = await loadMirrors();
+    const target = pickNextMirror(mirrors, self.location.hostname);
+    if (!target) return;
+    const url = `https://${target}/`;
+    event.source?.postMessage({ type: 'MOVIX_REDIRECT_TO', url });
+  } catch {}
+});
