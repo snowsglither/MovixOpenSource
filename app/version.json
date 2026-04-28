@@ -4,7 +4,7 @@
   "apkUrl": "https://github.com/movixcorp/MovixOpenSource/raw/refs/heads/main/app/movix-android.apk",
   "apkSizeBytes": 72040798,
   "apkSha256": "715544f47ad1aa7525081e07e7dfc892e58ba57b8419e5ec9d00c524527004c4",
-  "mandatory": true,
+  "mandatory": false,
   "releasedAt": "2026-04-25T16:26:33.137Z",
   "releaseNotes": {
     "fr": "",
