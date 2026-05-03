@@ -9112,6 +9112,10 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
               transition: 'filter 0.5s ease'
             }}
             playsInline
+            // Required so MediaElementAudioSourceNode (volume booster + audio enhancer)
+            // doesn't output silence on cross-origin proxied media. All proxies return
+            // Access-Control-Allow-Origin: *, so the request still succeeds.
+            crossOrigin="anonymous"
             {...{ referrerPolicy: "strict-origin-when-cross-origin" } as React.VideoHTMLAttributes<HTMLVideoElement>}
             poster={poster}
             onTimeUpdate={handleTimeUpdate}

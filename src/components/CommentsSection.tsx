@@ -1484,7 +1484,8 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({ contentType, contentI
         `${MAIN_API}/api/comments/${commentId}`,
         {
           content: editContent,
-          isSpoiler: editIsSpoiler
+          isSpoiler: editIsSpoiler,
+          profileId
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -1516,7 +1517,8 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({ contentType, contentI
         `${MAIN_API}/api/comments/replies/${replyId}`,
         {
           content: editContent,
-          isSpoiler: editIsSpoiler
+          isSpoiler: editIsSpoiler,
+          profileId
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );

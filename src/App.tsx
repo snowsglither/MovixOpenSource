@@ -986,8 +986,13 @@ const PersistenceManager = () => {
       });
     };
 
-    // BroadcastChannel for cross-tab sync (replaces 2s/5s polling on Safari/Firefox).
-    // Other tabs receive { key, value } and reconcile against their own prevValuesRefLocal.
+    // BroadcastChannel for cross-tab sync. Receivers ONLY refresh prev so
+    // future local diffs are correct against shared localStorage state — they
+    // must NOT enqueue sync ops here. The originating tab handles its own
+    // sync; re-syncing in receivers races with this tab's pending 1s flush
+    // and can interleave a `remove` between a user's `arrayAdd X` and the
+    // backing `arrayAdd A,B,C,D` (when another tab's loadProfileData wipes
+    // and re-applies the syncable keys), losing X from the backend.
     const supportsBroadcastChannel = typeof BroadcastChannel !== 'undefined';
     let channel: BroadcastChannel | null = null;
     if (supportsBroadcastChannel && isLocalStorageAvailable) {
@@ -998,12 +1003,11 @@ const PersistenceManager = () => {
           const key = data.key;
           const value = data.value as string | null | undefined;
           if (typeof key !== 'string') return;
-          const oldVal = prevValuesRefLocal.current.get(key) ?? null;
           const newVal = (value === undefined ? null : value) as string | null;
-          if (oldVal !== newVal) {
+          if (newVal === null) {
+            prevValuesRefLocal.current.delete(key);
+          } else {
             prevValuesRefLocal.current.set(key, newVal);
-            pendingDiffs.push({ key, oldVal, newVal });
-            scheduleDiffDrain();
           }
         };
       } catch (error) {
@@ -1127,16 +1131,14 @@ const PersistenceManager = () => {
       prevValuesRefLocal.current.clear();
     } as any;
 
+    // Same rule as the BroadcastChannel handler: refresh prev only, never
+    // enqueue sync ops. See the channel.onmessage comment above for the
+    // race that re-syncing here re-introduces.
     const storageListener = (e: StorageEvent) => {
       if (!e.key) return;
-      // Skip sync during profile data loading (but allow on watch routes)
-      if (isProfileDataLoadingRef.current) return;
-
       if (e.newValue === null) {
-        processRemove(e.key);
         prevValuesRefLocal.current.delete(e.key);
       } else {
-        processSet(e.key, e.oldValue, e.newValue);
         prevValuesRefLocal.current.set(e.key, e.newValue);
       }
     };

@@ -638,9 +638,11 @@ const LinkSelector: React.FC<{
                   </h3>
                   
                   {isDecoding ? (
-                    <div className="flex items-center justify-center py-6 sm:py-8">
-                      <Loader className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-blue-500" />
-                      <span className="ml-2 text-white text-sm sm:text-base">{t('download.decoding')}</span>
+                    <div className="flex flex-col items-center justify-center py-6 sm:py-8 gap-2">
+                      <div className="flex items-center">
+                        <Loader className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-blue-500" />
+                        <span className="ml-2 text-white text-sm sm:text-base">{t('download.decoding')}</span>
+                      </div>
                     </div>
                   ) : error ? (
                     <div className="flex items-center text-red-400 text-sm sm:text-base">
@@ -706,21 +708,19 @@ const LinkSelector: React.FC<{
                             )}
                           </>
                         )}
-                        {decodedLink.metadata && (
-                          <>
-                            {decodedLink.metadata.language && (
-                              <div>
-                                <span className="text-gray-400">{t('download.languageLabel')}</span>
-                                <span className="text-white ml-2">{decodedLink.metadata.language}</span>
-                              </div>
-                            )}
-                            {decodedLink.metadata.sub && (
-                              <div>
-                                <span className="text-gray-400">{t('download.subtitlesLabel')}</span>
-                                <span className="text-white ml-2">{decodedLink.metadata.sub}</span>
-                              </div>
-                            )}
-                          </>
+                        {/* Langue / sous-titres : download-premium ne les retourne pas,
+                            on retombe sur selectedLink (issu de /download/:type/:id). */}
+                        {(decodedLink.metadata?.language || selectedLink?.language) && (
+                          <div>
+                            <span className="text-gray-400">{t('download.languageLabel')}</span>
+                            <span className="text-white ml-2">{decodedLink.metadata?.language || selectedLink?.language}</span>
+                          </div>
+                        )}
+                        {(decodedLink.metadata?.sub || selectedLink?.sub) && (
+                          <div>
+                            <span className="text-gray-400">{t('download.subtitlesLabel')}</span>
+                            <span className="text-white ml-2">{decodedLink.metadata?.sub || selectedLink?.sub}</span>
+                          </div>
                         )}
                       </div>
 

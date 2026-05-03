@@ -21,6 +21,61 @@ import {
 } from '../utils/castUtils';
 import { PROXIES_EMBED_API } from '../config/runtime';
 
+type ProbedStreamFormat = 'hls' | 'mpegts' | 'dash' | 'unknown';
+
+/**
+ * Pre-flight a stream URL: read first chunk + Content-Type to detect format.
+ * Used for /proxy/ URLs that can redirect to extensionless raw streams (e.g.,
+ * raw MPEG-TS served as application/octet-stream). hls.js would hang forever
+ * on such streams because xhr.onload never fires for an infinite response.
+ *
+ * Returns 'unknown' on timeout/error/CORS so callers fall back to extension-based detection.
+ */
+const probeStreamFormat = async (url: string, timeoutMs = 3000): Promise<ProbedStreamFormat> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+    try {
+        const response = await fetch(url, {
+            signal: controller.signal,
+            method: 'GET',
+            mode: 'cors',
+            credentials: 'omit',
+        });
+
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('mpegurl') || contentType.includes('m3u8')) return 'hls';
+        if (contentType.includes('dash+xml')) return 'dash';
+        if (contentType.includes('mp2t') || contentType.includes('mpegts')) return 'mpegts';
+
+        if (!response.body) return 'unknown';
+        reader = response.body.getReader();
+        const { value } = await reader.read();
+        if (!value || value.length === 0) return 'unknown';
+
+        const head = value.subarray(0, Math.min(256, value.length));
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(head);
+
+        if (text.startsWith('#EXTM3U')) return 'hls';
+        if (text.includes('<MPD ') || text.includes('<MPD>')) return 'dash';
+
+        // Raw MPEG-TS: 0x47 sync at offset 0; verify at 188 if available.
+        if (head[0] === 0x47) {
+            if (value.length >= 189) return value[188] === 0x47 ? 'mpegts' : 'unknown';
+            return 'mpegts';
+        }
+
+        return 'unknown';
+    } catch {
+        return 'unknown';
+    } finally {
+        clearTimeout(timeoutId);
+        try { reader?.cancel(); } catch { /* ignore */ }
+        try { controller.abort(); } catch { /* ignore */ }
+    }
+};
+
 // Custom Loader that keeps top-level manifest requests on the proxy URL.
 // Child playlists rewritten by proxiesembed already use stable proxied URLs;
 // forcing them back to the root manifest can break live sequence tracking.
@@ -336,6 +391,7 @@ const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({
     const bufferAppendRetryRef = useRef<number>(0);
     const hlsRecoveryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const hlsRecoveryInFlightRef = useRef(false);
+    const mpegtsFallbackTriedRef = useRef(false);
     const userPausedRef = useRef(false);
 
     const [streams, setStreams] = useState<Stream[]>([]);
@@ -809,9 +865,12 @@ const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({
         if (!videoRef.current) return;
         const video = videoRef.current;
 
+        let cancelled = false;
+
         clearHlsRecoveryTimeout();
         hlsRecoveryInFlightRef.current = false;
         bufferAppendRetryRef.current = 0;
+        mpegtsFallbackTriedRef.current = false;
         resetPauseState();
 
         // Cleanup previous instances
@@ -944,12 +1003,11 @@ const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({
 
         console.log('Player selection:', { isMpegTs, isDash, finalUrl });
 
-        if (isMpegTs && mpegts.isSupported()) {
-            console.log('Initializing MPEG-TS player for:', finalUrl);
+        const initMpegtsPlayer = (url: string) => {
             const player = mpegts.createPlayer({
                 type: 'mpegts',  // could also be 'mse' type if content type is correct, but 'mpegts' is specific
                 isLive: true,
-                url: finalUrl,
+                url,
                 cors: true, // Important for proxy
             }, {
                 enableWorker: true,
@@ -972,7 +1030,6 @@ const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({
 
             player.on(mpegts.Events.ERROR, (type: any, details: any) => {
                 console.error('MPEG-TS Error', type, details);
-                // Fallback logic could go here
                 if (type === mpegts.ErrorTypes.NETWORK_ERROR) {
                     setError(t('liveTV.networkErrorMpegTs'));
                     setIsLoading(false);
@@ -983,10 +1040,19 @@ const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({
                 }
             });
 
-            // Loading handling
             video.addEventListener('playing', () => setIsLoading(false), { once: true });
+        };
 
-        } else if (isDash) {
+        const startEngine = (probedFormat: ProbedStreamFormat) => {
+        if (cancelled) return;
+        const useMpegts = isMpegTs || probedFormat === 'mpegts';
+        const useDash = isDash || probedFormat === 'dash';
+
+        if (useMpegts && mpegts.isSupported()) {
+            console.log('Initializing MPEG-TS player for:', finalUrl);
+            initMpegtsPlayer(finalUrl);
+
+        } else if (useDash) {
             // Initialize Dash Player
             const player = MediaPlayer().create();
             dashRef.current = player;
@@ -1203,6 +1269,26 @@ const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({
                     hls458RetryRef.current = 0;
                 }
 
+                // Raw MPEG-TS served as application/octet-stream (extensionless proxy URLs):
+                // hls.js can't parse it — switch engine to mpegts.js once.
+                if (
+                    details === 'manifestParsingError' &&
+                    !mpegtsFallbackTriedRef.current &&
+                    mpegts.isSupported() &&
+                    hlsRef.current === hls
+                ) {
+                    mpegtsFallbackTriedRef.current = true;
+                    console.warn('[LiveTV] HLS manifestParsingError — falling back to mpegts.js for raw MPEG-TS stream');
+                    try {
+                        hls.destroy();
+                    } catch (e) {
+                        console.error('[LiveTV] hls.destroy() failed before mpegts fallback:', e);
+                    }
+                    hlsRef.current = null;
+                    initMpegtsPlayer(finalUrl);
+                    return;
+                }
+
                 // 404 ou réponse vide — retriable
                 if (status === 404 || isLikelyEmpty200) {
                     if (hls404RetryRef.current < MAX_404_RETRIES) {
@@ -1332,8 +1418,26 @@ const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({
                 video.play().catch(console.error);
             });
         }
+        };
+
+        // Probe URLs going through /proxy/: they can redirect to extensionless raw
+        // streams (e.g., MPEG-TS served as application/octet-stream). hls.js's
+        // manifest XHR would hang forever on a never-ending response — pre-flight the
+        // first chunk to pick the right engine before initializing.
+        if (finalUrl.includes('/proxy/')) {
+            probeStreamFormat(finalUrl).then(format => {
+                if (cancelled) return;
+                if (format !== 'unknown') {
+                    console.log('[LiveTV] Probed stream format:', format);
+                }
+                startEngine(format);
+            });
+        } else {
+            startEngine('unknown');
+        }
 
         return () => {
+            cancelled = true;
             // Reset watchdog state on stream change
             stallCountRef.current = 0;
             lastTimeRef.current = 0;

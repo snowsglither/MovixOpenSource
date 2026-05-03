@@ -13,6 +13,13 @@ const fsp = require('fs').promises;
 const { generateCacheKey } = require('../utils/cacheManager');
 const { getAuthIfValid } = require('../middleware/auth');
 const { getPool: getMovixPool } = require('../mysqlPool');
+const hydrackerQueue = require('../utils/hydrackerQueue');
+
+// TTL pour les échecs de /decode (ex. "Lien d'embed invalide" persistant côté
+// upstream). On stocke un marker `{ failed: true, failedAt }` au lieu du
+// cachedData habituel, pour servir directement un 404 pendant ce délai sans
+// re-taper hydracker.com à chaque clic.
+const DECODE_FAILED_TTL_MS = 2 * 60 * 60 * 1000;
 
 const HOST_ICON_MAP = {
   '1fichier': '/hosts/1fichier.svg',
@@ -102,6 +109,8 @@ let saveToCache;
 let shouldUpdateCache;
 let shouldUpdateCache24h;
 let refreshDarkinoSessionIfNeeded;
+let redis;
+let shouldUpdateCache48h;
 
 /**
  * Inject runtime dependencies that still live in server.js.
@@ -116,6 +125,8 @@ function configure(deps) {
   if (deps.shouldUpdateCache) shouldUpdateCache = deps.shouldUpdateCache;
   if (deps.shouldUpdateCache24h) shouldUpdateCache24h = deps.shouldUpdateCache24h;
   if (deps.refreshDarkinoSessionIfNeeded) refreshDarkinoSessionIfNeeded = deps.refreshDarkinoSessionIfNeeded;
+  if (deps.redis) redis = deps.redis;
+  if (deps.shouldUpdateCache48h) shouldUpdateCache48h = deps.shouldUpdateCache48h;
 }
 
 function parsePositiveInt(value, fallback) {
@@ -372,16 +383,9 @@ router.get('/download/:type/:id', async (req, res) => {
 
           const hostInfo = entry.host;
           const provider = hostInfo?.name || 'unknown';
-          // Pour darkibox, le `lien` direct n'est pas exploitable, on garde
-          // null afin que le frontend déclenche /decode pour construire
-          // l'URL d'embed. Pour les autres providers (1fichier, sendcm, …),
-          // `entry.lien` est l'URL de téléchargement directe.
-          const directLien = provider.toLowerCase() === 'darkibox' ? null : (entry.lien || null);
 
           return {
             id: entry.id,
-            lien: directLien,
-            id_user: entry.id_user || undefined,
             language: (entry?.langues_compact && entry.langues_compact.length > 0)
               ? entry.langues_compact.map(l => l.name).join(', ')
               : undefined,
@@ -420,15 +424,9 @@ router.get('/download/:type/:id', async (req, res) => {
 
           const hostInfo = entry.host;
           const provider = hostInfo?.name || 'unknown';
-          // Pour darkibox, on laisse le frontend appeler /decode (URL d'embed
-          // construite côté serveur). Pour les autres providers, le `lien`
-          // est l'URL directe de téléchargement.
-          const directLien = provider.toLowerCase() === 'darkibox' ? null : (entry.lien || null);
 
           return {
             id: entry.id,
-            lien: directLien,
-            id_user: entry.id_user || undefined,
             language: (entry?.langues_compact && entry.langues_compact.length > 0)
               ? entry.langues_compact.map(l => l.name).join(', ')
               : undefined,
@@ -534,189 +532,54 @@ router.get('/download/:type/:id', async (req, res) => {
 router.get('/decode/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { title_id: titleIdParam } = req.query;
-    const titleId = titleIdParam ? String(titleIdParam) : null;
+    if (!id) return res.status(400).json({ success: false, error: 'ID du lien requis' });
 
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        error: 'ID du lien requis'
-      });
-    }
-
-    // Cache key v2 — invalide les anciens caches qui ont stocké des
-    // URLs d'embed invalides retournées par /api/v1/liens/{id}/download.
-    const cacheKey = generateCacheKey(`darkiworld_decode_v2_${id}`);
-
-    // Check if results are in cache without expiration (stale-while-revalidate)
-    const cachedData = await getFromCacheNoExpiration(DOWNLOAD_CACHE_DIR, cacheKey);
-    let dataReturned = false;
-    let shouldDoBackgroundUpdate = false;
-
-    if (cachedData) {
-      // Vérifier si le lien en cache est un lien d'embed invalide
-      const embedUrl = cachedData.embed_url || '';
-      const isInvalidEmbedLink = /\/embed-\d+\.html$/i.test(embedUrl);
-
-      if (isInvalidEmbedLink) {
-        // Cache invalide (lien d'embed `/embed-NN.html`), refetch silencieusement
-      } else {
-        // Cache valide, le retourner immédiatement
-        res.status(200).json(cachedData);
-        dataReturned = true;
-
-        // Vérifier si on doit faire un background update (fichier modifié il y a plus de 24h)
-        shouldDoBackgroundUpdate = await shouldUpdateCache24h(DOWNLOAD_CACHE_DIR, cacheKey);
-
-        // Si pas besoin de background update, on s'arrête là
-        if (!shouldDoBackgroundUpdate) {
-          return;
-        }
-        // Sinon on continue pour faire le fetch en arrière-plan
-      }
-    }
-
-
-
-    // Si pas de cache valide
-    // Si en maintenance
     if (DARKINO_MAINTENANCE) {
-      if (!dataReturned) {
-        return res.status(200).json({ error: 'Service Darkino temporairement indisponible (maintenance)' });
-      }
-      return; // Si on a déjà retourné des données, on arrête juste le traitement (pas de background update)
+      return res.status(200).json({ error: 'Service Darkino temporairement indisponible (maintenance)' });
     }
 
-    // Fonction pour récupérer les données fraîches via l'ancien endpoint
-    // `/api/v1/liens/{id}/download`. Le `title_id` est ignoré côté backend
-    // pour le moment (le nouvel endpoint content/liens requiert une session
-    // authentifiée), mais reste accepté en query pour compat future.
-    void titleId;
-    const fetchFreshData = async () => {
-      let linkInfo = null;
-      let embedUrl = null;
-      let provider = 'unknown';
-      let retryCount = 0;
-      const maxRetries = 2;
+    const result = await hydrackerQueue.decodeRequest(id, {
+      redis,
+      cacheDir: DOWNLOAD_CACHE_DIR,
+      generateCacheKey,
+      getFromCacheNoExpiration,
+      shouldUpdateCache48h
+    });
 
-      while (retryCount < maxRetries) {
-        try {
-          await refreshDarkinoSessionIfNeeded();
-
-          const linkResp = await axiosDarkinoRequest({
-            method: 'get',
-            url: `/api/v1/liens/${id}/download`
-          });
-
-          linkInfo = linkResp.data;
-          provider = linkInfo?.host?.name || 'unknown';
-
-          if (provider === 'darkibox') {
-            const rawDarkiboxLink = typeof linkInfo?.lien === 'string' ? linkInfo.lien : '';
-            const darkiboxCodeMatch = rawDarkiboxLink.match(/darkibox\.com\/(?:embed-)?([a-z0-9]{12,})(?:\.html)?/i);
-            const darkiboxCode = darkiboxCodeMatch ? darkiboxCodeMatch[1] : null;
-            embedUrl = darkiboxCode
-              ? `https://darkibox.com/embed-${darkiboxCode}.html`
-              : (rawDarkiboxLink || `https://darkibox.com/embed-${id}.html`);
-          } else {
-            embedUrl = linkInfo?.lien || `https://darkibox.com/embed-${id}.html`;
-          }
-
-          const isInvalidEmbedLink = /\/embed-\d+\.html$/i.test(embedUrl);
-
-          if (isInvalidEmbedLink && retryCount < maxRetries - 1) {
-            retryCount++;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
-          } else if (isInvalidEmbedLink) {
-            throw new Error('Lien d\'embed invalide');
-          }
-
-          break;
-        } catch (err) {
-          if (retryCount < maxRetries - 1) {
-            retryCount++;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
-          }
-          throw err;
-        }
-      }
-
-      return {
-        success: true,
-        id: id,
-        provider: provider,
-        embed_url: embedUrl,
-        metadata: linkInfo ? {
-          language: (linkInfo?.langues_compact && linkInfo.langues_compact.length > 0)
-            ? linkInfo.langues_compact.map(l => l.name).join(', ')
-            : undefined,
-          quality: linkInfo?.qual?.qual,
-          sub: (linkInfo?.subs_compact && linkInfo.subs_compact.length > 0)
-            ? linkInfo.subs_compact.map(s => s.name).join(', ')
-            : undefined,
-          size: linkInfo?.size,
-          upload_date: linkInfo?.created_at
-        } : null
-      };
-    };
-
-    // Si on fait un background update (données déjà retournées au client)
-    if (dataReturned && shouldDoBackgroundUpdate) {
-      // Background update du cache
-      (async () => {
-        try {
-          const freshData = await fetchFreshData();
-          if (freshData && freshData.embed_url) {
-            await saveToCache(DOWNLOAD_CACHE_DIR, cacheKey, freshData);
-          }
-        } catch (bgError) {
-          // Silent fail on background update
-        }
-      })();
-      return;
-    }
-
-    // Si on n'a pas encore retourné de données, faire le fetch normal
-    try {
-      const responseData = await fetchFreshData();
-
-      // Retourner les données
-      res.json(responseData);
-
-      // Mise à jour du cache
-      if (responseData.embed_url) {
-        try {
-          await saveToCache(DOWNLOAD_CACHE_DIR, cacheKey, responseData);
-        } catch (cacheError) {
-          // Silent fail on cache save
-        }
-      }
-    } catch (fetchError) {
+    if (result.payload) return res.status(200).json(result.payload);
+    if (result.failed) {
       return res.status(404).json({
         success: false,
-        error: 'Lien non trouvé ou inaccessible',
-        id: id,
-        debug: fetchError.message
+        error: result.failed.error || 'Lien non trouvé ou inaccessible',
+        id: result.failed.id || id,
+        debug: result.failed.debug || ''
+      });
+    }
+    if (result.queued) {
+      return res.status(202).json({
+        status: 'queued',
+        queue_size: result.queue_size,
+        id
+      });
+    }
+    if (result.rateLimited) {
+      return res.status(503).json({
+        success: false,
+        error: 'rate_limited',
+        retry_at: result.retryAt
+      });
+    }
+    if (result.unavailable) {
+      return res.status(503).json({
+        success: false,
+        error: 'queue_unavailable',
+        message: 'Infrastructure indisponible, réessaie plus tard'
       });
     }
 
+    return res.status(500).json({ success: false, error: 'Unknown decode result' });
+
   } catch (error) {
-    if (res.headersSent) {
-      return;
-    }
-
-    // Si Darkino retourne 500, ne pas créer/mettre à jour le cache et renvoyer le cache existant si présent
-    if (error.response && error.response.status >= 500) {
-      try {
-        const fallbackCache = await getFromCacheNoExpiration(DOWNLOAD_CACHE_DIR, cacheKey);
-        if (fallbackCache) {
-          return res.status(200).json(fallbackCache);
-        }
-      } catch (_) { }
-    }
-
     if (!res.headersSent) {
       res.status(500).json({
         success: false,
