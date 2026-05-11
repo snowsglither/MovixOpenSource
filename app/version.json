@@ -1,7 +1,7 @@
 {
   "version": "2.5.3",
   "buildNumber": 12,
-  "apkUrl": "https://github.com/Movix-STMG/MovixOpenSource/raw/refs/heads/main/app/movix-android.apk",
+  "apkUrl": "https://raw.githubusercontent.com/movixcorp/MovixOpenSource/main/app/movix-android.apk",
   "apkSizeBytes": 72023883,
   "apkSha256": "6e63593a1c47cee9cf60414219e4e05ef11c7a72e77256ebaffb65af1cc8e977",
   "mandatory": false,
