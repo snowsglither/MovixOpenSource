@@ -5,7 +5,7 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-  self.moduleName = @"MovixApp";
+  self.moduleName = @"Movix";
   self.initialProps = @{};
   return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }
