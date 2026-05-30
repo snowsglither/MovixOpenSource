@@ -119,6 +119,7 @@ async function setupRules() {
           "localhost",
           "127.0.0.1",
           "movix.cash",
+          "movix.cloud",
           "movix.tax",
           "movix.club",
         ],

@@ -38,6 +38,8 @@
       "*://localhost/*",
       "*://movix.cash/*",
       "*://*.movix.cash/*",
+      "*://movix.cloud/*",
+      "*://*.movix.cloud/*",
       "*://movix.tax/*",
       "*://*.movix.tax/*",
       "*://movix.club/*",

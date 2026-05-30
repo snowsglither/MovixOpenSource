@@ -12,6 +12,8 @@
 // @match        https://*.movix.cash/*
 // @match        https://movix.club/*
 // @match        https://*.movix.club/*
+// @match        https://movix.cloud/*
+// @match        https://*.movix.cloud/*
 // @match        https://movix.tax/*
 // @match        https://*.movix.tax/*
 // @grant        GM_xmlhttpRequest
@@ -2535,6 +2537,7 @@
             "127.0.0.1",
             "movix.cash",
             "movix.club",
+            "movix.cloud",
             "movix.tax",
           ],
           resourceTypes: [
@@ -2927,6 +2930,8 @@
         currentHostname.endsWith(".movix.cash") ||
         currentHostname === "movix.club" ||
         currentHostname.endsWith(".movix.club") ||
+        currentHostname === "movix.cloud" ||
+        currentHostname.endsWith(".movix.cloud") ||
         currentHostname === "movix.tax" ||
         currentHostname.endsWith(".movix.tax")
       ) {
