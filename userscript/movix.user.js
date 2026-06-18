@@ -17,6 +17,8 @@
 // @match        https://movix.tax/*
 // @match        https://*.movix.tax/*
 // @match        https://movix.golf/*
+// @match        https://movix.chat/*
+// @match        https://*.movix.chat/*
 // @match        https://*.movix.golf/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -1031,7 +1033,7 @@
    */
 
   // ===== Configuration =====
-  const PROXY_BASE = "https://proxiesembed.movix.cash";
+  const PROXY_BASE = "https://proxiesembed.movix.chat";
 
   // AES constants for SeekStreaming (embed4me)
   const SEEKSTREAMING_AES_KEY_HEX =
@@ -2388,7 +2390,7 @@
   const LIVETV_EMBED_ORIGIN = "https://livetv882.me";
   const LIVETV_EMBED_REFERER = LIVETV_BASE_URL;
   // Backend API URL for got-scraping based extraction
-  const API_BASE_URL = "https://api.movix.cash";
+  const API_BASE_URL = "https://api.movix.chat";
   const STREAM_PROXY_USER_AGENT =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -2542,6 +2544,7 @@
             "movix.cloud",
             "movix.tax",
             "movix.golf",
+            "movix.chat",
           ],
           resourceTypes: [
             "xmlhttprequest",
@@ -2938,13 +2941,15 @@
         currentHostname === "movix.tax" ||
         currentHostname.endsWith(".movix.tax") ||
         currentHostname === "movix.golf" ||
+        currentHostname === "movix.chat" ||
+        currentHostname.endsWith(".movix.chat") ||
         currentHostname.endsWith(".movix.golf")
       ) {
-        return (currentOrigin || "https://movix.cash").replace(/\/$/, "");
+        return (currentOrigin || "https://movix.chat").replace(/\/$/, "");
       }
     } catch {}
 
-    return "https://movix.cash";
+    return "https://movix.chat";
   }
 
   function buildBackendApiHeaders(accessKey, extraHeaders = {}) {

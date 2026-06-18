@@ -45,7 +45,9 @@
       "*://movix.club/*",
       "*://*.movix.club/*",
       "*://movix.golf/*",
-      "*://*.movix.golf/*"
+      "*://*.movix.golf/*",
+      "*://movix.chat/*",
+      "*://*.movix.chat/*"
     ]
   },
   "web_accessible_resources": [

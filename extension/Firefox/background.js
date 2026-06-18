@@ -11,7 +11,7 @@ const LIVETV_BASE_URL = "https://livetv882.me/frx/";
 const LIVETV_EMBED_ORIGIN = "https://livetv882.me";
 const LIVETV_EMBED_REFERER = LIVETV_BASE_URL;
 // Backend API URL for got-scraping based extraction
-const API_BASE_URL = "https://api.movix.cash";
+const API_BASE_URL = "https://api.movix.chat";
 const STREAM_PROXY_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -122,6 +122,7 @@ async function setupRules() {
           "movix.cloud",
           "movix.tax",
           "movix.club",
+          "movix.chat",
           "movix.golf",
         ],
         resourceTypes: [
@@ -468,8 +469,8 @@ function handleDetectEmbeds(payload) {
 function buildBackendApiHeaders(accessKey, extraHeaders = {}) {
   const headers = {
     Accept: "application/json",
-    Origin: "https://movix.cash",
-    Referer: "https://movix.cash/",
+    Origin: "https://movix.chat",
+    Referer: "https://movix.chat/",
     ...extraHeaders,
   };
 
