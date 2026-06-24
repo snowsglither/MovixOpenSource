@@ -50,7 +50,9 @@ function domainRestriction(req, res, next) {
     'movix11.pages.dev',
     'nakios.site',
     'cinezo.site',
-    'filmib.cc'
+    'filmib.cc',
+    'lks-tv.pages.dev',
+    'trycloudflare.com'
   ];
 
   const origin = req.get('origin');
