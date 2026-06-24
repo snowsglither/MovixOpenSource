@@ -666,7 +666,6 @@ const WatchAnime: React.FC = () => {
 
           // Also add as embed source for fallback
           sources.push(oneUploadSource);
-        }
         } else {
           // Extract domain name from URL to use as player name
           let playerName = "Unknown";
