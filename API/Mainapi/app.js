@@ -608,6 +608,10 @@ const appReady = (async () => {
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
       console.log('LKS TV tables (local_profiles, lkstv_history, lkstv_watchlist) initialized');
 
+      // Migrations incrémentales — idempotentes, ignorées si déjà appliquées
+      try { await pool.execute(`ALTER TABLE local_profiles ADD COLUMN IF NOT EXISTS pin_code VARCHAR(4) DEFAULT NULL`); } catch (_) {}
+      try { await pool.execute(`ALTER TABLE lkstv_history MODIFY COLUMN media_type VARCHAR(10) NOT NULL`); } catch (_) {}
+
       // OAuth client config (table oauth_clients + stats + grants VIP).
       // ensureTables et migrateLegacyJsonIfNeeded sont protégés par le lock
       // mais idempotents — sûr sur restart cluster. reloadCache hydrate

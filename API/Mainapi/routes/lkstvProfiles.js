@@ -1,10 +1,11 @@
 /**
  * LKS TV — Local Profiles CRUD (sans auth JWT).
  *
- * GET    /api/lkstv/profiles        → liste tous les profils
- * POST   /api/lkstv/profiles        → créer un profil
- * PUT    /api/lkstv/profiles/:id    → mettre à jour un profil
- * DELETE /api/lkstv/profiles/:id    → supprimer un profil
+ * GET    /api/lkstv/profiles            → liste tous les profils (has_pin boolean, jamais le pin brut)
+ * POST   /api/lkstv/profiles            → créer un profil (pin optionnel 4 chiffres)
+ * PUT    /api/lkstv/profiles/:id        → mettre à jour (pin optionnel)
+ * DELETE /api/lkstv/profiles/:id        → supprimer (pin requis dans body si profil protégé)
+ * POST   /api/lkstv/profiles/:id/verify-pin → vérifier le PIN { pin } → { valid }
  */
 
 const express = require('express');
@@ -12,7 +13,6 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { getPool } = require('../mysqlPool');
 
-// Validation helpers
 function validateName(name) {
   if (typeof name !== 'string') return false;
   const trimmed = name.trim();
@@ -24,14 +24,19 @@ function validateAvatarColor(color) {
   return color.trim().startsWith('bg-');
 }
 
+function validatePin(pin) {
+  if (pin === null || pin === undefined || pin === '') return true; // optional
+  return typeof pin === 'string' && /^\d{4}$/.test(pin);
+}
+
 // GET /api/lkstv/profiles
 router.get('/profiles', async (_req, res) => {
   const pool = getPool();
   try {
     const [rows] = await pool.execute(
-      'SELECT id, name, avatar_color, created_at FROM local_profiles ORDER BY created_at ASC'
+      'SELECT id, name, avatar_color, created_at, (pin_code IS NOT NULL) as has_pin FROM local_profiles ORDER BY created_at ASC'
     );
-    return res.json({ profiles: rows });
+    return res.json({ profiles: rows.map(r => ({ ...r, has_pin: !!r.has_pin })) });
   } catch (err) {
     console.error('[lkstvProfiles] GET /profiles error:', err);
     return res.status(500).json({ error: 'Erreur serveur' });
@@ -40,7 +45,7 @@ router.get('/profiles', async (_req, res) => {
 
 // POST /api/lkstv/profiles
 router.post('/profiles', async (req, res) => {
-  const { name, avatar_color } = req.body || {};
+  const { name, avatar_color, pin } = req.body || {};
 
   if (!validateName(name)) {
     return res.status(400).json({ error: 'name doit contenir entre 1 et 50 caractères' });
@@ -48,22 +53,27 @@ router.post('/profiles', async (req, res) => {
   if (!validateAvatarColor(avatar_color)) {
     return res.status(400).json({ error: 'avatar_color doit commencer par bg-' });
   }
+  if (!validatePin(pin)) {
+    return res.status(400).json({ error: 'pin doit être 4 chiffres (ou absent)' });
+  }
 
   const id = uuidv4();
   const trimmedName = name.trim();
   const trimmedColor = avatar_color.trim();
+  const pinCode = (pin && pin.trim()) ? pin.trim() : null;
   const pool = getPool();
 
   try {
     await pool.execute(
-      'INSERT INTO local_profiles (id, name, avatar_color) VALUES (?, ?, ?)',
-      [id, trimmedName, trimmedColor]
+      'INSERT INTO local_profiles (id, name, avatar_color, pin_code) VALUES (?, ?, ?, ?)',
+      [id, trimmedName, trimmedColor, pinCode]
     );
     const [rows] = await pool.execute(
-      'SELECT id, name, avatar_color, created_at FROM local_profiles WHERE id = ?',
+      'SELECT id, name, avatar_color, created_at, (pin_code IS NOT NULL) as has_pin FROM local_profiles WHERE id = ?',
       [id]
     );
-    return res.status(201).json({ profile: rows[0] });
+    const profile = { ...rows[0], has_pin: !!rows[0].has_pin };
+    return res.status(201).json({ profile });
   } catch (err) {
     console.error('[lkstvProfiles] POST /profiles error:', err);
     return res.status(500).json({ error: 'Erreur serveur' });
@@ -73,7 +83,7 @@ router.post('/profiles', async (req, res) => {
 // PUT /api/lkstv/profiles/:id
 router.put('/profiles/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, avatar_color } = req.body || {};
+  const { name, avatar_color, pin } = req.body || {};
 
   if (name !== undefined && !validateName(name)) {
     return res.status(400).json({ error: 'name doit contenir entre 1 et 50 caractères' });
@@ -81,16 +91,16 @@ router.put('/profiles/:id', async (req, res) => {
   if (avatar_color !== undefined && !validateAvatarColor(avatar_color)) {
     return res.status(400).json({ error: 'avatar_color doit commencer par bg-' });
   }
-  if (name === undefined && avatar_color === undefined) {
+  if (pin !== undefined && !validatePin(pin)) {
+    return res.status(400).json({ error: 'pin doit être 4 chiffres ou chaîne vide pour supprimer' });
+  }
+  if (name === undefined && avatar_color === undefined && pin === undefined) {
     return res.status(400).json({ error: 'Aucun champ à mettre à jour' });
   }
 
   const pool = getPool();
   try {
-    const [existing] = await pool.execute(
-      'SELECT id FROM local_profiles WHERE id = ?',
-      [id]
-    );
+    const [existing] = await pool.execute('SELECT id FROM local_profiles WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ error: 'Profil introuvable' });
     }
@@ -99,18 +109,19 @@ router.put('/profiles/:id', async (req, res) => {
     const values = [];
     if (name !== undefined) { fields.push('name = ?'); values.push(name.trim()); }
     if (avatar_color !== undefined) { fields.push('avatar_color = ?'); values.push(avatar_color.trim()); }
+    if (pin !== undefined) {
+      fields.push('pin_code = ?');
+      values.push((pin && pin.trim()) ? pin.trim() : null);
+    }
     values.push(id);
 
-    await pool.execute(
-      `UPDATE local_profiles SET ${fields.join(', ')} WHERE id = ?`,
-      values
-    );
+    await pool.execute(`UPDATE local_profiles SET ${fields.join(', ')} WHERE id = ?`, values);
 
     const [rows] = await pool.execute(
-      'SELECT id, name, avatar_color, created_at FROM local_profiles WHERE id = ?',
+      'SELECT id, name, avatar_color, created_at, (pin_code IS NOT NULL) as has_pin FROM local_profiles WHERE id = ?',
       [id]
     );
-    return res.json({ profile: rows[0] });
+    return res.json({ profile: { ...rows[0], has_pin: !!rows[0].has_pin } });
   } catch (err) {
     console.error('[lkstvProfiles] PUT /profiles/:id error:', err);
     return res.status(500).json({ error: 'Erreur serveur' });
@@ -120,28 +131,54 @@ router.put('/profiles/:id', async (req, res) => {
 // DELETE /api/lkstv/profiles/:id
 router.delete('/profiles/:id', async (req, res) => {
   const { id } = req.params;
+  const { pin } = req.body || {};
   const pool = getPool();
 
   try {
-    const [all] = await pool.execute(
-      'SELECT id FROM local_profiles'
-    );
+    const [all] = await pool.execute('SELECT id FROM local_profiles');
     if (all.length <= 1) {
       return res.status(400).json({ error: 'Impossible de supprimer le dernier profil' });
     }
 
     const [existing] = await pool.execute(
-      'SELECT id FROM local_profiles WHERE id = ?',
-      [id]
+      'SELECT id, pin_code FROM local_profiles WHERE id = ?', [id]
     );
     if (existing.length === 0) {
       return res.status(404).json({ error: 'Profil introuvable' });
+    }
+
+    const storedPin = existing[0].pin_code;
+    if (storedPin !== null) {
+      if (!pin || String(pin).trim() !== storedPin) {
+        return res.status(403).json({ error: 'PIN incorrect' });
+      }
     }
 
     await pool.execute('DELETE FROM local_profiles WHERE id = ?', [id]);
     return res.json({ success: true });
   } catch (err) {
     console.error('[lkstvProfiles] DELETE /profiles/:id error:', err);
+    return res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/lkstv/profiles/:id/verify-pin
+router.post('/profiles/:id/verify-pin', async (req, res) => {
+  const { id } = req.params;
+  const { pin } = req.body || {};
+  const pool = getPool();
+
+  try {
+    const [rows] = await pool.execute('SELECT pin_code FROM local_profiles WHERE id = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Profil introuvable' });
+
+    const storedPin = rows[0].pin_code;
+    if (storedPin === null) return res.json({ valid: true }); // no PIN set
+
+    const valid = String(pin || '').trim() === storedPin;
+    return res.json({ valid });
+  } catch (err) {
+    console.error('[lkstvProfiles] POST /profiles/:id/verify-pin error:', err);
     return res.status(500).json({ error: 'Erreur serveur' });
   }
 });

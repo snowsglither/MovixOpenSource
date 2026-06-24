@@ -23,7 +23,7 @@ import { useWrappedTracker } from '../../hooks/useWrappedTracker';
 import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { isContentAllowed, getClassificationLabel } from '../../utils/certificationUtils';
-import { profileStorageKey } from '../../services/lkstvProfileService';
+import { profileStorageKey, getActiveProfile, upsertHistory } from '../../services/lkstvProfileService';
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -278,7 +278,23 @@ const WatchAnime: React.FC = () => {
     continueWatching.tv.unshift(updatedShow);
     continueWatching.tv = continueWatching.tv.slice(0, 20);
     localStorage.setItem(cwKey, JSON.stringify(continueWatching));
-  }, [id, season, episode]);
+
+    // Sync to backend for cross-device history
+    const activeProfile = getActiveProfile();
+    if (activeProfile) {
+      upsertHistory({
+        profile_id: activeProfile.id,
+        media_type: 'anime',
+        media_id: showIdInt,
+        title: showDetails?.name || '',
+        poster_path: showDetails?.poster_path || '',
+        season: seasonNumber,
+        episode: episodeNumber,
+        progress: 0,
+        duration: showDetails?.episode_run_time?.[0] ? showDetails.episode_run_time[0] * 60 : 0,
+      }).catch(() => {});
+    }
+  }, [id, season, episode, showDetails]);
 
   // LKS TV Wrapped 2026 - Track anime viewing time
   useWrappedTracker({

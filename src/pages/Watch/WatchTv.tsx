@@ -25,7 +25,7 @@ import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { getClassificationLabel } from '../../utils/certificationUtils';
 import { getCoflixPreferredUrl } from '../../utils/coflix';
-import { profileStorageKey } from '../../services/lkstvProfileService';
+import { profileStorageKey, getActiveProfile, upsertHistory } from '../../services/lkstvProfileService';
 
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
@@ -1282,6 +1282,22 @@ const WatchTv: React.FC = () => {
           // Keep only last 20 TV shows
           // continueWatching.tv = continueWatching.tv.slice(0, 20); // Removed limit
           localStorage.setItem(cwKey, JSON.stringify(continueWatching));
+
+          // Sync to backend for cross-device history
+          const activeProfile = getActiveProfile();
+          if (activeProfile) {
+            upsertHistory({
+              profile_id: activeProfile.id,
+              media_type: 'tv',
+              media_id: showIdInt,
+              title: showTitle || '',
+              poster_path: showPosterPath || '',
+              season: seasonNumber,
+              episode: episodeNumber,
+              progress: 0,
+              duration: 0,
+            }).catch(() => {});
+          }
         }
 
         // Get seasons information for episode navigation

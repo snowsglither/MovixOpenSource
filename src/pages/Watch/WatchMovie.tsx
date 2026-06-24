@@ -19,7 +19,7 @@ import { isUserVip, getVipHeaders } from '../../utils/authUtils';
 import { isExtensionAvailable } from '../../utils/extensionProxy';
 import { RIVESTREAM_PROXIES } from '../../config/rivestreamProxy';
 import { buildProxyUrl, MAIN_API } from '../../config/runtime';
-import { profileStorageKey } from '../../services/lkstvProfileService';
+import { profileStorageKey, getActiveProfile, upsertHistory } from '../../services/lkstvProfileService';
 import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { isContentAllowed, getClassificationLabel } from '../../utils/certificationUtils';
@@ -781,6 +781,20 @@ const WatchMovie: React.FC = () => {
         });
 
         localStorage.setItem(cwKey, JSON.stringify(continueWatching));
+
+        // Sync to backend for cross-device history
+        const activeProfile = getActiveProfile();
+        if (activeProfile) {
+          upsertHistory({
+            profile_id: activeProfile.id,
+            media_type: 'movie',
+            media_id: movieIdInt,
+            title: tmdbResponse.data.title || '',
+            poster_path: tmdbResponse.data.poster_path || '',
+            progress: 0,
+            duration: tmdbResponse.data.runtime ? tmdbResponse.data.runtime * 60 : 0,
+          }).catch(() => {});
+        }
       }
 
       // Initialize loading states for individual sources

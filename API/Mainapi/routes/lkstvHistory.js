@@ -58,8 +58,8 @@ router.post('/history', async (req, res) => {
     progress, duration, season, episode
   } = req.body || {};
 
-  if (!media_type || !['movie', 'tv'].includes(media_type)) {
-    return res.status(400).json({ error: 'media_type doit être "movie" ou "tv"' });
+  if (!media_type || !['movie', 'tv', 'anime'].includes(media_type)) {
+    return res.status(400).json({ error: 'media_type doit être "movie", "tv" ou "anime"' });
   }
   if (!media_id) {
     return res.status(400).json({ error: 'media_id requis' });
@@ -106,8 +106,8 @@ router.delete('/history/:mediaType/:mediaId', async (req, res) => {
   }
 
   const { mediaType, mediaId } = req.params;
-  if (!['movie', 'tv'].includes(mediaType)) {
-    return res.status(400).json({ error: 'mediaType doit être "movie" ou "tv"' });
+  if (!['movie', 'tv', 'anime'].includes(mediaType)) {
+    return res.status(400).json({ error: 'mediaType doit être "movie", "tv" ou "anime"' });
   }
 
   const pool = getPool();
@@ -157,8 +157,8 @@ router.post('/watchlist', async (req, res) => {
 
   const { media_type, media_id, title, poster_path } = req.body || {};
 
-  if (!media_type || !['movie', 'tv'].includes(media_type)) {
-    return res.status(400).json({ error: 'media_type doit être "movie" ou "tv"' });
+  if (!media_type || !['movie', 'tv', 'anime'].includes(media_type)) {
+    return res.status(400).json({ error: 'media_type doit être "movie", "tv" ou "anime"' });
   }
   if (!media_id) {
     return res.status(400).json({ error: 'media_id requis' });
@@ -192,8 +192,8 @@ router.delete('/watchlist/:mediaType/:mediaId', async (req, res) => {
   }
 
   const { mediaType, mediaId } = req.params;
-  if (!['movie', 'tv'].includes(mediaType)) {
-    return res.status(400).json({ error: 'mediaType doit être "movie" ou "tv"' });
+  if (!['movie', 'tv', 'anime'].includes(mediaType)) {
+    return res.status(400).json({ error: 'mediaType doit être "movie", "tv" ou "anime"' });
   }
 
   const pool = getPool();

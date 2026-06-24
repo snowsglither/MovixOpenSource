@@ -4,13 +4,14 @@ export interface LKSTVProfile {
   id: string;
   name: string;
   avatar_color: string;
+  has_pin?: boolean;
   created_at?: string;
 }
 
 export interface LKSTVHistoryEntry {
   id?: number;
   profile_id: string;
-  media_type: 'movie' | 'tv';
+  media_type: 'movie' | 'tv' | 'anime';
   media_id: number;
   title?: string;
   poster_path?: string;
@@ -52,29 +53,46 @@ export async function fetchProfiles(): Promise<LKSTVProfile[]> {
   return d.profiles || [];
 }
 
-export async function createProfile(name: string, avatar_color: string): Promise<LKSTVProfile> {
+export async function createProfile(name: string, avatar_color: string, pin?: string): Promise<LKSTVProfile> {
   const r = await fetch(`${API}/api/lkstv/profiles`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, avatar_color })
+    body: JSON.stringify({ name, avatar_color, ...(pin ? { pin } : {}) })
   });
   const d = await r.json();
   if (!r.ok) throw new Error(d.error || 'Erreur création profil');
   return d.profile;
 }
 
-export async function updateProfile(id: string, name: string, avatar_color: string): Promise<LKSTVProfile> {
+export async function updateProfile(id: string, name: string, avatar_color: string, pin?: string): Promise<LKSTVProfile> {
+  const body: Record<string, string> = { name, avatar_color };
+  if (pin !== undefined) body.pin = pin; // empty string = remove PIN
   const r = await fetch(`${API}/api/lkstv/profiles/${id}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, avatar_color })
+    body: JSON.stringify(body)
   });
   const d = await r.json();
   if (!r.ok) throw new Error(d.error || 'Erreur mise à jour');
   return d.profile;
 }
 
-export async function deleteProfile(id: string): Promise<void> {
-  const r = await fetch(`${API}/api/lkstv/profiles/${id}`, { method: 'DELETE' });
+export async function deleteProfile(id: string, pin?: string): Promise<void> {
+  const r = await fetch(`${API}/api/lkstv/profiles/${id}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: pin !== undefined ? JSON.stringify({ pin }) : undefined,
+  });
   if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Erreur suppression'); }
+}
+
+export async function verifyPin(id: string, pin: string): Promise<boolean> {
+  try {
+    const r = await fetch(`${API}/api/lkstv/profiles/${id}/verify-pin`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
+    });
+    const d = await r.json();
+    return !!d.valid;
+  } catch { return false; }
 }
 
 // History

@@ -916,7 +916,7 @@ router.get('/search/:query', async (req, res) => {
           // No existing cache
         }
 
-        const RECENT_UPDATE_THRESHOLD = 1 * 60 * 60 * 1000;
+        const RECENT_UPDATE_THRESHOLD = 30 * 60 * 1000;
         let shouldSkipAnime = false;
         try {
           const stats = await fsp.stat(animeCachePath);

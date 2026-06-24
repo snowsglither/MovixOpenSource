@@ -19,7 +19,7 @@ import { SITE_URL } from '../config/runtime';
 import { getTmdbLanguage } from '../i18n';
 import { getPersonalizedRecommendations, isRecommendationsEnabled, PersonalizedRecommendations } from '../services/recommendationService';
 import CarouselTitle from '../components/CarouselTitle';
-import { profileStorageKey } from '../services/lkstvProfileService';
+import { profileStorageKey, getActiveProfile, fetchHistory } from '../services/lkstvProfileService';
 
 // Nombre de sections à charger immédiatement (les premières sont prioritaires)
 const IMMEDIATE_LOAD_COUNT = 3;
@@ -573,6 +573,44 @@ const Home: React.FC = () => {
     const loadContinueWatching = async () => {
       try {
         const cwKey = profileStorageKey('continueWatching');
+
+        // Fetch from backend and merge into localStorage for cross-device sync
+        const activeProfile = getActiveProfile();
+        if (activeProfile) {
+          try {
+            const serverHistory = await fetchHistory(activeProfile.id);
+            if (serverHistory.length > 0) {
+              let local: { movies: any[], tv: any[] } = { movies: [], tv: [] };
+              try { local = JSON.parse(localStorage.getItem(cwKey) || '{"movies":[],"tv":[]}'); } catch {}
+              if (!Array.isArray(local.movies)) local.movies = [];
+              if (!Array.isArray(local.tv)) local.tv = [];
+
+              for (const h of serverHistory) {
+                if (h.media_type === 'movie') {
+                  if (!local.movies.find((m: any) => m.id === h.media_id)) {
+                    local.movies.push({ id: h.media_id, lastAccessed: h.watched_at || new Date().toISOString() });
+                  }
+                } else if (h.media_type === 'tv' || h.media_type === 'anime') {
+                  const existing = local.tv.find((t: any) => t.id === h.media_id);
+                  const entry = {
+                    id: h.media_id,
+                    currentEpisode: h.season && h.episode ? { season: h.season, episode: h.episode } : undefined,
+                    lastAccessed: h.watched_at || new Date().toISOString(),
+                  };
+                  if (!existing) {
+                    local.tv.push(entry);
+                  } else if (!existing.currentEpisode && entry.currentEpisode) {
+                    Object.assign(existing, entry);
+                  }
+                }
+              }
+              localStorage.setItem(cwKey, JSON.stringify(local));
+            }
+          } catch (_) {
+            // Backend unreachable — fall through to localStorage
+          }
+        }
+
         const savedItems = localStorage.getItem(cwKey);
         if (savedItems) {
           // Check if we need to migrate from old format to new format
