@@ -295,6 +295,10 @@ const createHlsConfig = (src: string) => {
     maxBufferSize: isPulseTopstrime ? 4 * 1000 * 1000 : (isServersicuro ? 30 * 1000 * 1000 : 60 * 1000 * 1000), // Augmenter pour serversicuro
     maxBufferHole: 0.5,
     highBufferWatchdogPeriod: 2,
+    // Fast startup: premier fragment au niveau le plus bas (le plus petit = le plus rapide),
+    // puis ABR prend la suite avec une estimation de départ généreuse (5 Mbps).
+    abrEwmaDefaultEstimate: isPulseTopstrime ? 500000 : 5000000,
+    startLevel: 0,
     // Configuration pour prévenir les erreurs de buffer append
     appendErrorMaxRetry: 5,
     enableSoftwareAES: true, // Utiliser le déchiffrement logiciel pour éviter les problèmes de codec
@@ -3477,7 +3481,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
     const handleTimeUpdate = () => {
       if (isDragging) return;
       setCurrentTime(video.currentTime);
-      setDuration(video.duration);
+      if (isFinite(video.duration)) setDuration(video.duration);
       // Keep the last known position in a ref that survives cleanup of the
       // main src effect (which clears video.src and resets currentTime).
       if (video.currentTime > 0.5) {
@@ -5590,6 +5594,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
   }, [airPlayError]);
 
   const formatTime = (time: number): string => {
+    if (!isFinite(time) || isNaN(time)) return '--:--';
     const hours = Math.floor(time / 3600);
     const minutes = Math.floor((time % 3600) / 60);
     const seconds = Math.floor(time % 60);
