@@ -251,7 +251,8 @@ const checkCustomTVLink = async (showId: string, seasonNumber: number, episodeNu
 
   try {
     const response = await axios.get(`${MAIN_API}/api/links/tv/${showId}`, {
-      params: { season: seasonNumber, episode: episodeNumber }
+      params: { season: seasonNumber, episode: episodeNumber },
+      timeout: 8000,
     });
 
     // For TV series, data is an array, not an object
@@ -422,7 +423,7 @@ const checkSibnetAvailability = async (videoId: string): Promise<string | null> 
 
   try {
     const sibnetUrl = `https://video.sibnet.ru/shell.php?videoid=${videoId}`;
-    const response = await axios.get(`${PROXIES_EMBED_API}/api/extract-sibnet?url=${encodeURIComponent(sibnetUrl)}`);
+    const response = await axios.get(`${PROXIES_EMBED_API}/api/extract-sibnet?url=${encodeURIComponent(sibnetUrl)}`, { timeout: 8000 });
 
     if (response.data) {
       const rawUrl = response.data.sourceUrl || response.data.url;
@@ -1061,11 +1062,18 @@ const WatchTv: React.FC = () => {
     }
   };
 
+  // Safety fallback: force isLoading=false after 15s to avoid infinite spinner
+  // (happens when backend is unreachable and axios calls hang with no timeout)
+  useEffect(() => {
+    if (!isLoading) return;
+    const fallback = setTimeout(() => setIsLoading(false), 15000);
+    return () => clearTimeout(fallback);
+  }, [isLoading]);
+
   // Check loading states to finish overall loading
   useEffect(() => {
     if (!isLoading) return; // Don't run if already finished loading or errored
 
-    // Determine if all necessary sources have finished loading attempts
     // Determine if all necessary sources have finished loading attempts
     const areSourcesLoading = loadingDarkino || loadingCoflix || loadingOmega || loadingCustom || loadingSibnet || loadingFrembed || loadingFstream || loadingWiflix || loadingViper || loadingExtractions;
 
@@ -1362,7 +1370,8 @@ const WatchTv: React.FC = () => {
         const coflixPromise = (async () => {
           try {
             const coflixResponse = await axios.get(`${MAIN_API}/api/tmdb/tv/${id}`, {
-              params: { season: seasonNumber, episode: episodeNumber }
+              params: { season: seasonNumber, episode: episodeNumber },
+              timeout: 8000,
             });
             return coflixResponse.data;
           } catch (error) {
@@ -1384,7 +1393,7 @@ const WatchTv: React.FC = () => {
             if (imdbResponse.data && imdbResponse.data.imdb_id) {
               const imdbId = imdbResponse.data.imdb_id;
               // Appel sans params inutiles
-              const omegaResponse = await axios.get(`${MAIN_API}/api/imdb/tv/${imdbId}`);
+              const omegaResponse = await axios.get(`${MAIN_API}/api/imdb/tv/${imdbId}`, { timeout: 8000 });
               omegaDataResult = omegaResponse.data;
             }
           } catch (error) {
@@ -1415,7 +1424,8 @@ const WatchTv: React.FC = () => {
           try {
             // Envoyer la clé VIP via header pour vérification côté serveur
             const fstreamResponse = await axios.get(`${MAIN_API}/api/fstream/tv/${id}/season/${seasonNumber}`, {
-              headers: { ...getVipHeaders() }
+              headers: { ...getVipHeaders() },
+              timeout: 8000,
             });
             return fstreamResponse.data;
           } catch (error) {
@@ -1429,7 +1439,7 @@ const WatchTv: React.FC = () => {
         // ========== CHECK WIFLIX (LYNX) SOURCE ==========
         const wiflixPromise = (async () => {
           try {
-            const wiflixResponse = await axios.get(`${MAIN_API}/api/wiflix/tv/${id}/${seasonNumber}`);
+            const wiflixResponse = await axios.get(`${MAIN_API}/api/wiflix/tv/${id}/${seasonNumber}`, { timeout: 8000 });
             return wiflixResponse.data;
           } catch (error) {
             console.error('Error fetching Wiflix/Lynx TV source:', error);
@@ -1442,7 +1452,7 @@ const WatchTv: React.FC = () => {
         // ========== CHECK VIPER SOURCE ==========
         const viperPromise = (async () => {
           try {
-            const viperResponse = await axios.get(`${MAIN_API}/api/cpasmal/tv/${id}/${seasonNumber}/${episodeNumber}`);
+            const viperResponse = await axios.get(`${MAIN_API}/api/cpasmal/tv/${id}/${seasonNumber}/${episodeNumber}`, { timeout: 8000 });
             return viperResponse.data;
           } catch (error) {
             console.error('Error fetching Viper TV source:', error);

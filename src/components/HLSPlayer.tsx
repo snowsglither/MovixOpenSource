@@ -295,10 +295,9 @@ const createHlsConfig = (src: string) => {
     maxBufferSize: isPulseTopstrime ? 4 * 1000 * 1000 : (isServersicuro ? 30 * 1000 * 1000 : 60 * 1000 * 1000), // Augmenter pour serversicuro
     maxBufferHole: 0.5,
     highBufferWatchdogPeriod: 2,
-    // Fast startup: premier fragment au niveau le plus bas (le plus petit = le plus rapide),
-    // puis ABR prend la suite avec une estimation de départ généreuse (5 Mbps).
+    // Fast startup: ABR démarre avec une estimation de bande passante généreuse (5 Mbps)
+    // pour choisir une qualité décente dès le premier segment sans rester bloqué sur le niveau 0.
     abrEwmaDefaultEstimate: isPulseTopstrime ? 500000 : 5000000,
-    startLevel: 0,
     // Configuration pour prévenir les erreurs de buffer append
     appendErrorMaxRetry: 5,
     enableSoftwareAES: true, // Utiliser le déchiffrement logiciel pour éviter les problèmes de codec

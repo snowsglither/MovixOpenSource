@@ -216,7 +216,7 @@ const checkMovieAvailability = async (movieId: string) => {
 
     // Fetch custom links from MySQL API
     try {
-      const response = await axios.get(`${MAIN_API}/api/links/movie/${movieId}`);
+      const response = await axios.get(`${MAIN_API}/api/links/movie/${movieId}`, { timeout: 8000 });
 
       if (response.data && response.data.success && response.data.data && response.data.data.links) {
         const rawLinks = response.data.data.links;
@@ -678,18 +678,15 @@ const WatchMovie: React.FC = () => {
     setLoadingText(message);
   };
 
+  // Safety fallback: force isLoading=false after 15s to avoid infinite spinner
+  useEffect(() => {
+    if (!isLoading) return;
+    const fallback = setTimeout(() => setIsLoading(false), 15000);
+    return () => clearTimeout(fallback);
+  }, [isLoading]);
+
   // Reset VIP retry message when loading finishes
   useEffect(() => {
-    console.log("Loading states changed:", {
-      loadingDarkino,
-      loadingCoflix,
-      loadingOmega,
-      loadingFrembed,
-      loadingFstream,
-      loadingWiflix,
-      loadingViper
-    });
-
     if (!loadingDarkino && !loadingCoflix && !loadingOmega && !loadingFrembed && !loadingFstream && !loadingWiflix && !loadingViper && !loadingExtractions) {
       setVipRetryMessage(null);
       setIsLoading(false);
@@ -825,7 +822,7 @@ const WatchMovie: React.FC = () => {
           return { customLinks: [], mp4Links: [], frembedAvailable: false }; // Default/error state
         }).finally(() => setLoadingFrembed(false));
 
-      const coflixPromise = axios.get(`${MAIN_API}/api/tmdb/movie/${id}`)
+      const coflixPromise = axios.get(`${MAIN_API}/api/tmdb/movie/${id}`, { timeout: 8000 })
         .then(response => response.data)
         .catch(error => {
           console.error('Error fetching Coflix sources:', error);
@@ -839,7 +836,7 @@ const WatchMovie: React.FC = () => {
           });
           if (imdbResponse.data && imdbResponse.data.imdb_id) {
             const imdbId = imdbResponse.data.imdb_id;
-            const omegaResponse = await axios.get(`${MAIN_API}/api/imdb/movie/${imdbId}`);
+            const omegaResponse = await axios.get(`${MAIN_API}/api/imdb/movie/${imdbId}`, { timeout: 8000 });
             if (omegaResponse.data && omegaResponse.data.player_links) {
               omegaResponse.data.player_links = omegaResponse.data.player_links.map((player: { player: string; link: string; is_hd: boolean }) => ({
                 ...player,
@@ -875,7 +872,8 @@ const WatchMovie: React.FC = () => {
         try {
           // Envoyer la clé VIP via header pour vérification côté serveur
           const fstreamResponse = await axios.get(`${MAIN_API}/api/fstream/movie/${id}`, {
-            headers: { ...getVipHeaders() }
+            headers: { ...getVipHeaders() },
+            timeout: 8000,
           });
           return fstreamResponse.data;
         } catch (error) {
@@ -885,7 +883,7 @@ const WatchMovie: React.FC = () => {
       })().finally(() => setLoadingFstream(false));
 
       // =========== CHECK WIFLIX (LYNX) SOURCE ===========
-      const wiflixPromise: Promise<WiflixMovieResponse | null> = axios.get(`${MAIN_API}/api/wiflix/movie/${id}`)
+      const wiflixPromise: Promise<WiflixMovieResponse | null> = axios.get(`${MAIN_API}/api/wiflix/movie/${id}`, { timeout: 8000 })
         .then(response => response.data as WiflixMovieResponse)
         .catch(error => {
           console.error('Error fetching Wiflix/Lynx source:', error);
@@ -893,7 +891,7 @@ const WatchMovie: React.FC = () => {
         }).finally(() => setLoadingWiflix(false));
 
       // =========== CHECK VIPER (CPASMAL) SOURCE ===========
-      const viperPromise: Promise<ViperMovieResponse | null> = axios.get(`${MAIN_API}/api/cpasmal/movie/${id}`)
+      const viperPromise: Promise<ViperMovieResponse | null> = axios.get(`${MAIN_API}/api/cpasmal/movie/${id}`, { timeout: 8000 })
         .then(response => response.data as ViperMovieResponse)
         .catch(error => {
           console.error('Error fetching Viper/Cpasmal source:', error);
