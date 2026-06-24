@@ -143,9 +143,9 @@ async function tryExtensionFirst(type: string, url: string, serverFallback: () =
 
 // Feature flags pour les extracteurs jamais exposés côté UI (hors-scope du
 // panneau de contrôle — laissés hardcodés).
-const SUPERVIDEO_EXTRACTIONS_ENABLED = false;
-const DROPLOAD_EXTRACTIONS_ENABLED = false;
-const ONEUPLOAD_EXTRACTIONS_ENABLED = false;
+const SUPERVIDEO_EXTRACTIONS_ENABLED = true;
+const DROPLOAD_EXTRACTIONS_ENABLED = true;
+const ONEUPLOAD_EXTRACTIONS_ENABLED = true;
 const DARKIBOX_EXTRACTIONS_ENABLED = true;
 
 // Les extracteurs ci-dessous sont pilotés par les préférences utilisateur via
@@ -1064,7 +1064,7 @@ export function detectSupportedEmbeds(
     }
 
     // Détection Fsvid (VIP requis)
-    if (urlLower.includes('fsvid') && isFsvidExtractionEnabled() && isVip) {
+    if (urlLower.includes('fsvid') && isFsvidExtractionEnabled() && canAccess) {
       detectedEmbeds.push({
         type: 'fsvid',
         url,

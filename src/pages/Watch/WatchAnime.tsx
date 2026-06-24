@@ -667,10 +667,6 @@ const WatchAnime: React.FC = () => {
           // Also add as embed source for fallback
           sources.push(oneUploadSource);
         }
-        // Skip anime-sama URLs - don't display them as players
-        else if (playerUrlString.includes('anime-sama.fr') || playerUrlString.includes('anime-sama.to')) {
-          console.log('Skipping anime-sama URL:', playerUrlString);
-          continue;
         } else {
           // Extract domain name from URL to use as player name
           let playerName = "Unknown";
