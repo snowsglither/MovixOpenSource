@@ -23,6 +23,7 @@ import { useWrappedTracker } from '../../hooks/useWrappedTracker';
 import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { isContentAllowed, getClassificationLabel } from '../../utils/certificationUtils';
+import { profileStorageKey } from '../../services/lkstvProfileService';
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -251,9 +252,10 @@ const WatchAnime: React.FC = () => {
       return;
     }
 
+    const cwKey = profileStorageKey('continueWatching');
     let continueWatching: ContinueWatchingStore;
     try {
-      continueWatching = JSON.parse(localStorage.getItem('continueWatching') || '{"movies": [], "tv": []}') as ContinueWatchingStore;
+      continueWatching = JSON.parse(localStorage.getItem(cwKey) || '{"movies": [], "tv": []}') as ContinueWatchingStore;
     } catch {
       continueWatching = { movies: [], tv: [] };
     }
@@ -275,7 +277,7 @@ const WatchAnime: React.FC = () => {
     continueWatching.tv = continueWatching.tv.filter((tvShow) => tvShow.id !== showIdInt);
     continueWatching.tv.unshift(updatedShow);
     continueWatching.tv = continueWatching.tv.slice(0, 20);
-    localStorage.setItem('continueWatching', JSON.stringify(continueWatching));
+    localStorage.setItem(cwKey, JSON.stringify(continueWatching));
   }, [id, season, episode]);
 
   // LKS TV Wrapped 2026 - Track anime viewing time

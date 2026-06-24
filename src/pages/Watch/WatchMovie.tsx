@@ -18,7 +18,8 @@ import { useWrappedTracker } from '../../hooks/useWrappedTracker';
 import { isUserVip, getVipHeaders } from '../../utils/authUtils';
 import { isExtensionAvailable } from '../../utils/extensionProxy';
 import { RIVESTREAM_PROXIES } from '../../config/rivestreamProxy';
-import { buildProxyUrl } from '../../config/runtime';
+import { buildProxyUrl, MAIN_API } from '../../config/runtime';
+import { profileStorageKey } from '../../services/lkstvProfileService';
 import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { isContentAllowed, getClassificationLabel } from '../../utils/certificationUtils';
@@ -26,7 +27,7 @@ import { getCoflixPreferredUrl } from '../../utils/coflix';
 import { DownloadButton } from '../../components/DownloadButton';
 
 
-const MAIN_API = import.meta.env.VITE_MAIN_API;
+
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 // Constante pour contrôler la vérification VIP pour Rivestream
@@ -753,7 +754,8 @@ const WatchMovie: React.FC = () => {
 
       // Add movie to continueWatching (if history is enabled)
       if (localStorage.getItem('settings_disable_history') !== 'true') {
-        const continueWatching = JSON.parse(localStorage.getItem('continueWatching') || '{"movies": [], "tv": []}');
+        const cwKey = profileStorageKey('continueWatching');
+        const continueWatching = JSON.parse(localStorage.getItem(cwKey) || '{"movies": [], "tv": []}');
 
         // Ensure structure exists
         if (!continueWatching.movies) continueWatching.movies = [];
@@ -778,7 +780,7 @@ const WatchMovie: React.FC = () => {
           lastAccessed: new Date().toISOString()
         });
 
-        localStorage.setItem('continueWatching', JSON.stringify(continueWatching));
+        localStorage.setItem(cwKey, JSON.stringify(continueWatching));
       }
 
       // Initialize loading states for individual sources

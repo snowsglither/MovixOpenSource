@@ -617,7 +617,7 @@ const Home: React.FC = () => {
           } catch (error) {
             console.error('Error parsing continueWatching data:', error);
             migratedData = { movies: [], tv: [] };
-            localStorage.setItem('continueWatching', JSON.stringify(migratedData));
+            localStorage.setItem(cwKey, JSON.stringify(migratedData));
           }
 
           // Process with the new data structure

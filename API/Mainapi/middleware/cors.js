@@ -16,7 +16,9 @@ const STATIC_ALLOWED_DOMAINS = [
   'movix11.pages.dev',
   'nakios.site',
   'cinezo.site',
-  'filmib.cc'
+  'filmib.cc',
+  'lks-tv.pages.dev',
+  'trycloudflare.com'
 ];
 
 function isAllowedStaticOrigin(origin) {
