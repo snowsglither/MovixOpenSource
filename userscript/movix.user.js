@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Movix Proxy Extension (Tampermonkey)
 // @namespace    https://movix.cash
-// @version      1.4.4
+// @version      1.4.5
 // @description  Extension proxy pour Live TV Movix - Contourne CORS, injecte les headers et extrait les sources Nexus - version userscript Tampermonkey
 // @author       Movix
 // @match        http://localhost/*
@@ -5136,25 +5136,40 @@
   // --- END extension/Chrome/background.js ---
 
   function postExtensionResponse(messageId, success, payload) {
-    pageWindow.postMessage(
-      success
-        ? {
-            source: "MOVIX_EXTENSION",
-            messageId,
-            success: true,
-            data: payload,
-          }
-        : {
-            source: "MOVIX_EXTENSION",
-            messageId,
-            success: false,
-            error:
-              payload instanceof Error
-                ? payload.message
-                : payload?.error || String(payload || "Erreur inconnue"),
-          },
-      "*",
-    );
+    const response = success
+      ? {
+          source: "MOVIX_EXTENSION",
+          messageId,
+          success: true,
+          data: payload,
+        }
+      : {
+          source: "MOVIX_EXTENSION",
+          messageId,
+          success: false,
+          error:
+            payload instanceof Error
+              ? payload.message
+              : payload?.error || String(payload || "Erreur inconnue"),
+        };
+
+    // Transport 1 — postMessage (desktop extension + desktop Tampermonkey).
+    pageWindow.postMessage(response, "*");
+
+    // Transport 2 — CustomEvent on the shared document. iOS userscript managers run
+    // in an isolated world whose window differs from the page's and where postMessage
+    // may not bridge, but the document is shared (the dataset flag already proves it),
+    // so a CustomEvent always reaches the page. detail is a JSON string because objects
+    // don't survive the world boundary.
+    try {
+      document.dispatchEvent(
+        new CustomEvent("MOVIX_EXTENSION_RESPONSE", {
+          detail: JSON.stringify(response),
+        }),
+      );
+    } catch (_) {
+      /* CustomEvent unsupported — postMessage path still active */
+    }
   }
 
   async function requestAction(action, payload) {
@@ -5216,23 +5231,32 @@
     pageWindow.dispatchEvent(new CustomEvent("movix-extension-loaded"));
   }
 
-  pageWindow.addEventListener("message", async (event) => {
-    // Do NOT gate on event.source === pageWindow: on iOS userscript managers
-    // (Stay, Userscripts) this script runs in an isolated world whose window
-    // differs from the page's, so the identity check drops every request and the
-    // page times out. Same-origin + the "MOVIX_WEB" tag is enough.
-    const sameOrigin =
-      !event.origin || event.origin === pageWindow.location.origin;
+  // The page emits each request on two transports (postMessage + CustomEvent on the
+  // shared document) because iOS userscript managers run in an isolated world where
+  // postMessage may not bridge. Dedupe by messageId so the action runs only once.
+  const processedRequestIds = new Set();
+
+  async function handleExtensionRequest(data) {
     if (
-      !sameOrigin ||
-      !event.data ||
-      event.data.source !== "MOVIX_WEB" ||
-      event.data.type !== "EXTENSION_REQUEST"
+      !data ||
+      data.source !== "MOVIX_WEB" ||
+      data.type !== "EXTENSION_REQUEST"
     ) {
       return;
     }
 
-    const { action, payload, messageId } = event.data;
+    const { action, payload, messageId } = data;
+
+    if (messageId) {
+      if (processedRequestIds.has(messageId)) {
+        return;
+      }
+      processedRequestIds.add(messageId);
+      if (processedRequestIds.size > 500) {
+        processedRequestIds.delete(processedRequestIds.values().next().value);
+      }
+    }
+
     const result = await requestAction(action, payload);
 
     if (result.success) {
@@ -5244,6 +5268,32 @@
         result.error || "Erreur inconnue",
       );
     }
+  }
+
+  // Transport 1 — postMessage. Do NOT gate on event.source === pageWindow: on iOS the
+  // isolated-world window differs from the page's, so an identity check drops every
+  // request. Same-origin + the "MOVIX_WEB" tag is enough.
+  pageWindow.addEventListener("message", (event) => {
+    const sameOrigin =
+      !event.origin || event.origin === pageWindow.location.origin;
+    if (!sameOrigin) {
+      return;
+    }
+    handleExtensionRequest(event.data);
+  });
+
+  // Transport 2 — CustomEvent on the shared document (reliable across isolated worlds).
+  document.addEventListener("MOVIX_WEB_REQUEST", (event) => {
+    let data;
+    try {
+      data =
+        typeof event.detail === "string"
+          ? JSON.parse(event.detail)
+          : event.detail;
+    } catch (_) {
+      return;
+    }
+    handleExtensionRequest(data);
   });
 
   exposePageApi();
