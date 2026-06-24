@@ -621,13 +621,18 @@ const WatchAnime: React.FC = () => {
 
         // Check if this is a Vidmoly URL - extract M3U8
         if (playerUrlString.includes('vidmoly.to') || playerUrlString.includes('vidmoly.net')) {
+          // Use the URL as-is if it's already .net, otherwise replace .to with .net
+          const vidmolyNetUrl = playerUrlString.includes('vidmoly.net')
+            ? playerUrlString
+            : playerUrlString.replace('vidmoly.to', 'vidmoly.net');
+
           const vidmolySource = {
             language: streamingLink.language,
             quality: 'Auto',
-            url: playerUrlString,
+            url: vidmolyNetUrl,
             player: 'Vidmoly',
             label: `${streamingLink.language.toUpperCase()} - Vidmoly`,
-            id: `vidmoly-${streamingLink.language}-${playerUrlString}`
+            id: `vidmoly-${streamingLink.language}-${vidmolyNetUrl}`
           };
 
           vidmolySources.push(vidmolySource);
@@ -666,6 +671,10 @@ const WatchAnime: React.FC = () => {
 
           // Also add as embed source for fallback
           sources.push(oneUploadSource);
+        }
+        // Skip anime-sama URLs - don't display them as players
+        else if (playerUrlString.includes('anime-sama.fr') || playerUrlString.includes('anime-sama.to')) {
+          continue;
         } else {
           // Extract domain name from URL to use as player name
           let playerName = "Unknown";
