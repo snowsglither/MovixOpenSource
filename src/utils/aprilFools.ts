@@ -1,6 +1,6 @@
-const APRIL_FOOLS_TIMEZONE = 'Europe/Paris';
+﻿const APRIL_FOOLS_TIMEZONE = 'Europe/Paris';
 const APRIL_FOOLS_PREVIEW_QUERY = 'apriladmin';
-const APRIL_FOOLS_PREVIEW_STORAGE_KEY = 'movix_april_admin_preview';
+const APRIL_FOOLS_PREVIEW_STORAGE_KEY = 'LKSTV_april_admin_preview';
 
 const aprilFoolsFormatter = new Intl.DateTimeFormat('en-GB', {
   timeZone: APRIL_FOOLS_TIMEZONE,

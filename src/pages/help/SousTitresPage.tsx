@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Captions } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -7,7 +7,7 @@ const SousTitresPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.sousTitres.title')} — Movix`;
+    document.title = `${t('help.sousTitres.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -65,6 +65,7 @@ import {
   hexToRgbString,
   notifyBgPrefsChanged,
 } from '../utils/bgPreferences';
+import { profileStorageKey } from '../services/lkstvProfileService';
 
 const API_URL = import.meta.env.VITE_MAIN_API;
 
@@ -486,7 +487,7 @@ const SettingsPage: React.FC = () => {
   };
 
   const [introEnabled, setIntroEnabled] = useState(() => {
-    return localStorage.getItem('movix_intro_enabled') === 'true';
+    return localStorage.getItem('LKSTV_intro_enabled') === 'true';
   });
 
   const [screensaverEnabled, setScreensaverEnabled] = useState(() => {
@@ -984,9 +985,9 @@ const SettingsPage: React.FC = () => {
   const handleIntroToggle = () => {
     const newValue = !introEnabled;
     setIntroEnabled(newValue);
-    localStorage.setItem('movix_intro_enabled', String(newValue));
+    localStorage.setItem('LKSTV_intro_enabled', String(newValue));
     if (newValue) {
-      localStorage.removeItem('movix_intro_seen');
+      localStorage.removeItem('LKSTV_intro_seen');
     }
     window.dispatchEvent(new Event('intro_settings_changed'));
   };
@@ -1076,7 +1077,7 @@ const SettingsPage: React.FC = () => {
   const confirmDisableHistory = () => {
     setHistoryDisabled(true);
     localStorage.setItem('settings_disable_history', 'true');
-    localStorage.removeItem('continueWatching');
+    localStorage.removeItem(profileStorageKey('continueWatching'));
     setShowHistoryConfirm(false);
   };
 
@@ -2622,7 +2623,7 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-white">{t('settings.linkedAccountsTitle', 'Comptes liés')}</h2>
-                  <p className="text-sm text-gray-500">{t('settings.linkedAccountsDesc', 'Choisissez quels moyens de connexion doivent ouvrir ce compte Movix.')}</p>
+                  <p className="text-sm text-gray-500">{t('settings.linkedAccountsDesc', 'Choisissez quels moyens de connexion doivent ouvrir ce compte LKS TV.')}</p>
                 </div>
               </div>
 
@@ -2648,11 +2649,11 @@ const SettingsPage: React.FC = () => {
                           ? t('settings.linkedAccountsRedirectSummary', {
                             method: authMethodLabel,
                             provider: accountProviderLabel,
-                            defaultValue: `Vous êtes connecté avec ${authMethodLabel}, mais Movix vous a redirigé vers ce compte ${accountProviderLabel}.`,
+                            defaultValue: `Vous êtes connecté avec ${authMethodLabel}, mais LKS TV vous a redirigé vers ce compte ${accountProviderLabel}.`,
                           })
                           : t('settings.linkedAccountsSessionNoLongerLinkedSummary', {
                               method: authMethodLabel,
-                              defaultValue: `Vous êtes connecté avec ${authMethodLabel} pour cette session, mais aucune redirection ${authMethodLabel} n'est active actuellement. Une prochaine connexion ${authMethodLabel} rouvrira son propre compte Movix.`,
+                              defaultValue: `Vous êtes connecté avec ${authMethodLabel} pour cette session, mais aucune redirection ${authMethodLabel} n'est active actuellement. Une prochaine connexion ${authMethodLabel} rouvrira son propre compte LKS TV.`,
                             })
                         : t('settings.linkedAccountsDirectSummary', {
                             provider: accountProviderLabel,
@@ -2692,27 +2693,27 @@ const SettingsPage: React.FC = () => {
                     ? isCurrentMethod
                       ? t('settings.linkedAccountsTargetDirectDescription', {
                           provider: providerLabel,
-                          defaultValue: `C'est le compte Movix ${providerLabel} actuellement ouvert. Les connexions ${providerLabel} arrivent déjà ici sans redirection.`,
+                          defaultValue: `C'est le compte LKS TV ${providerLabel} actuellement ouvert. Les connexions ${providerLabel} arrivent déjà ici sans redirection.`,
                         })
                       : t('settings.linkedAccountsTargetRedirectedDescription', {
                           provider: providerLabel,
                           method: currentAuthLabel,
-                          defaultValue: `C'est le compte Movix ${providerLabel} actuellement ouvert. Vous êtes arrivé ici via ${currentAuthLabel}, car ce moyen est redirigé vers ce compte.`,
+                          defaultValue: `C'est le compte LKS TV ${providerLabel} actuellement ouvert. Vous êtes arrivé ici via ${currentAuthLabel}, car ce moyen est redirigé vers ce compte.`,
                         })
                     : status.linked
                       ? isCurrentMethod
                         ? t('settings.linkedAccountsCurrentMethodRedirectDescription', {
                             provider: providerLabel,
-                            defaultValue: `Vous êtes connecté avec ${providerLabel}. Comme il est lié à ce compte, Movix vous a redirigé ici.`,
+                            defaultValue: `Vous êtes connecté avec ${providerLabel}. Comme il est lié à ce compte, LKS TV vous a redirigé ici.`,
                           })
                         : t('settings.linkedAccountsLinkedDescription', {
                             provider: providerLabel,
-                            defaultValue: `Quand vous vous connecterez avec ${providerLabel}, Movix vous redirigera vers ce compte.`,
+                            defaultValue: `Quand vous vous connecterez avec ${providerLabel}, LKS TV vous redirigera vers ce compte.`,
                           })
                       : isCurrentMethod
                         ? t('settings.linkedAccountsCurrentMethodInactiveDescription', {
                             provider: providerLabel,
-                            defaultValue: `Vous êtes connecté avec ${providerLabel} pour cette session, mais aucune redirection n'est active actuellement. Une prochaine connexion ${providerLabel} rouvrira son propre compte Movix.`,
+                            defaultValue: `Vous êtes connecté avec ${providerLabel} pour cette session, mais aucune redirection n'est active actuellement. Une prochaine connexion ${providerLabel} rouvrira son propre compte LKS TV.`,
                           })
                         : t('settings.linkedAccountsInactiveDescription', {
                           provider: providerLabel,
@@ -3025,8 +3026,8 @@ const SettingsPage: React.FC = () => {
                   {EXTRACTION_METHOD_KEYS.map((key) => {
                     const selected = extractionPrefs.method === key;
                     const available =
-                      key === 'extension' ? !!(typeof window !== 'undefined' && window.hasMovixExtension) :
-                      key === 'userscript' ? !!(typeof window !== 'undefined' && window.hasMovixUserscript) :
+                      key === 'extension' ? !!(typeof window !== 'undefined' && window.hasLKSTVExtension) :
+                      key === 'userscript' ? !!(typeof window !== 'undefined' && window.hasLKSTVUserscript) :
                       key === 'server' ? isUserVip() :
                       true;
                     return (
@@ -3335,11 +3336,11 @@ const SettingsPage: React.FC = () => {
                       {linkModal.action === 'link'
                         ? t('settings.linkedAccountsModalLinkDescription', {
                             provider: getProviderLabel(linkModal.provider),
-                            defaultValue: `Quand vous vous connecterez avec ${getProviderLabel(linkModal.provider)}, Movix vous redirigera vers ce compte. Si vous désactivez plus tard cette liaison, ${getProviderLabel(linkModal.provider)} rouvrira son propre compte Movix.`,
+                            defaultValue: `Quand vous vous connecterez avec ${getProviderLabel(linkModal.provider)}, LKS TV vous redirigera vers ce compte. Si vous désactivez plus tard cette liaison, ${getProviderLabel(linkModal.provider)} rouvrira son propre compte LKS TV.`,
                           })
                         : t('settings.linkedAccountsModalUnlinkDescription', {
                             provider: getProviderLabel(linkModal.provider),
-                            defaultValue: `Si vous désactivez cette liaison, une future connexion avec ${getProviderLabel(linkModal.provider)} ne redirigera plus vers ce compte. Elle rouvrira le compte Movix propre à ${getProviderLabel(linkModal.provider)}.`,
+                            defaultValue: `Si vous désactivez cette liaison, une future connexion avec ${getProviderLabel(linkModal.provider)} ne redirigera plus vers ce compte. Elle rouvrira le compte LKS TV propre à ${getProviderLabel(linkModal.provider)}.`,
                           })}
                     </p>
                   </div>

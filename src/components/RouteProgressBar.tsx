@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Top-of-page progress bar shown while a route chunk is loading.
  *
  * Used as the Suspense fallback for routes that don't have a matching
@@ -24,12 +24,12 @@ export const RouteProgressBar = () => (
         height: '100%',
         width: '40%',
         background: 'linear-gradient(90deg, transparent, #e50914, transparent)',
-        animation: 'movix-route-progress 1.2s ease-in-out infinite',
+        animation: 'LKS TV-route-progress 1.2s ease-in-out infinite',
         willChange: 'transform',
       }}
     />
     <style>{`
-      @keyframes movix-route-progress {
+      @keyframes LKS TV-route-progress {
         0%   { transform: translateX(-100%); }
         100% { transform: translateX(350%); }
       }

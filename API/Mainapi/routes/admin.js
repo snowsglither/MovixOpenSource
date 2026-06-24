@@ -11,6 +11,7 @@ const fsp = require('fs').promises;
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 
+const axios = require('axios');
 const { isAdmin, isUploaderOrAdmin } = require('../middleware/auth');
 const { getPool } = require('../mysqlPool');
 const { verifyAccessKey, invalidateVipCache } = require('../checkVip');
@@ -100,6 +101,39 @@ const vipCodeRateLimit = rateLimit({
 // === PUBLIC ROUTES (no authentication) ===
 
 /**
+ * GET /frembed/check/:type/:id
+ * Proxy the frembed availability check to avoid browser CORS restrictions.
+ * type: movie | tv   id: TMDB ID
+ * Query (TV only): sa=<season>&epi=<episode>
+ */
+router.get('/frembed/check/:type/:id', async (req, res) => {
+  const { type, id } = req.params;
+  const { sa, epi } = req.query;
+
+  let frembedUrl;
+  if (type === 'tv') {
+    frembedUrl = `https://frembed.click/api/public/v1/tv/${id}?sa=${sa || 1}&epi=${epi || 1}`;
+  } else {
+    frembedUrl = `https://frembed.click/api/public/v1/movies/${id}`;
+  }
+
+  try {
+    const response = await axios.get(frembedUrl, {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Referer': 'https://frembed.click/',
+      }
+    });
+    res.json(response.data);
+  } catch (error) {
+    // Si frembed est injoignable ou refuse → renvoyer un objet neutre (pas indisponible)
+    res.status(200).json({ status: 0, result: { totalItems: 0 } });
+  }
+});
+
+/**
  * GET /links/:type/:id
  * Retrieve streaming links for a movie or series
  * Params: type (movie/tv), id (TMDB ID)
@@ -115,7 +149,12 @@ router.get('/links/:type/:id', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Type invalide. Utilisez "movie" ou "tv"' });
     }
 
-    const pool = getPool();
+    let pool;
+    try {
+      pool = getPool();
+    } catch (_poolErr) {
+      return res.status(404).json({ success: false, error: 'Aucun lien trouvé', type, id });
+    }
     let query, params;
 
     if (type === 'movie') {
@@ -160,6 +199,11 @@ router.get('/links/:type/:id', async (req, res) => {
     });
 
   } catch (error) {
+    // Table inexistante ou MySQL indisponible → pas de liens, pas de crash
+    if (error.code === 'ER_NO_SUCH_TABLE' || error.code === 'ECONNREFUSED' || error.code === 'ER_ACCESS_DENIED_ERROR') {
+      const { type, id } = req.params;
+      return res.status(404).json({ success: false, error: 'Aucun lien trouvé', type, id });
+    }
     console.error('Error fetching streaming links:', error);
     res.status(500).json({
       success: false,

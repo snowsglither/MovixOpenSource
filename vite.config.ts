@@ -66,11 +66,53 @@ export default defineConfig({
   server: {
     host: true,
     port: 3000,
+    allowedHosts: true,
     hmr: true,
     watch: {
       usePolling: true,
       interval: 100,
       ignored: ['**/node_modules/**', '**/.git/**'],
+    },
+    proxy: {
+      // Main Express API (:25565)
+      '/api': {
+        target: 'http://127.0.0.1:25565',
+        changeOrigin: true,
+        headers: { origin: 'http://localhost:3000' },
+      },
+
+      // AnimeSama routes (:25565) — /anime/search, /anime/purge-all, etc.
+      '/anime': {
+        target: 'http://127.0.0.1:25565',
+        changeOrigin: true,
+        headers: { origin: 'http://localhost:3000' },
+      },
+
+      // Python proxy (:25569) — préfixe dédié pour les appels directs PROXIES_EMBED_API.
+      // Ex: /embed-proxy/api/extract-vidmoly → /api/extract-vidmoly sur :25569
+      '/embed-proxy': {
+        target: 'http://127.0.0.1:25569',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/embed-proxy/, ''),
+        headers: { origin: 'http://localhost:3000' },
+      },
+
+      // Python proxy (:25569) — chemins natifs écrits dans les manifests M3U8 réécrits.
+      // Le proxy Python injecte /proxy/{url} et /vidmoly-proxy/{url} etc. dans les manifests
+      // pour que HLS.js puisse les fetcher. Ces requêtes doivent atteindre :25569 directement.
+      '^/(proxy|drm|voe-proxy|fsvid-proxy|vidzy-proxy|vidmoly-proxy|sibnet-proxy|uqload-proxy|doodstream-proxy|seekstreaming-proxy|cinep-proxy)': {
+        target: 'http://127.0.0.1:25569',
+        changeOrigin: true,
+        headers: { origin: 'http://localhost:3000' },
+      },
+
+      // WatchParty Socket.IO (:25566)
+      '/socket.io': {
+        target: 'http://127.0.0.1:25566',
+        changeOrigin: true,
+        ws: true,
+        headers: { origin: 'http://localhost:3000' },
+      },
     },
   },
   preview: {

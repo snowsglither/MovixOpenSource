@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Crown, Gift } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -8,7 +8,7 @@ const VipHelpPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.vip.title')} — Movix`;
+    document.title = `${t('help.vip.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

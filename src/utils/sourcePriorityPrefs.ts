@@ -1,4 +1,4 @@
-// src/utils/sourcePriorityPrefs.ts
+﻿// src/utils/sourcePriorityPrefs.ts
 import {
   TOP_LEVEL_SOURCE_IDS, BUILTIN_HOSTER_IDS, LANGUAGE_IDS,
   DEPRECATED_SOURCE_IDS, DEPRECATED_HOSTER_IDS,
@@ -8,7 +8,7 @@ import {
 } from '../types/sourcePriority';
 
 const STORAGE_KEY = 'settings_source_priority_prefs';
-const CHANGE_EVENT = 'movix-source-priority-changed';
+const CHANGE_EVENT = 'LKS TV-source-priority-changed';
 
 /**
  * Version du schéma persistée dans localStorage.

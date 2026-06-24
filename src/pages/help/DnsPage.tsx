@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ShieldAlert,
@@ -21,11 +21,11 @@ const EXTERNAL_RESOURCES: Array<{
     href: 'https://developers.cloudflare.com/1.1.1.1/setup/',
   },
   { labelKey: 'helpDns.otherChangeTonDns', href: 'https://changetondns.fr/' },
-  { labelKey: 'helpDns.otherMirrorsMovixHealth', href: 'https://movix.health' },
-  { labelKey: 'helpDns.otherMirrors', href: 'https://rentry.co/movix' },
+  { labelKey: 'helpDns.otherMirrorsLKSTVHealth', href: 'https://movix.health' },
+  { labelKey: 'helpDns.otherMirrors', href: 'https://rentry.co/LKS TV' },
   {
     labelKey: 'helpDns.otherTelegram',
-    href: import.meta.env.VITE_SUPPORT_TELEGRAM_URL || 'https://t.me/movix_site',
+    href: import.meta.env.VITE_SUPPORT_TELEGRAM_URL || 'https://t.me/LKSTV_site',
   },
 ];
 
@@ -70,7 +70,7 @@ const DnsPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('helpDns.title')} — Movix`;
+    document.title = `${t('helpDns.title')} — LKS TV`;
   }, [t]);
 
   const renderInstallGrid = () => (

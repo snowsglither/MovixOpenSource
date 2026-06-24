@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import HeroSlider from '../components/HeroSlider';
@@ -325,7 +325,7 @@ const Movies: React.FC = () => {
     { id: 37, name: 'Western', route: '/genre/movie/37' },
   ]);
 
-  // Track page visit for Movix Wrapped
+  // Track page visit for LKS TV Wrapped
   useWrappedTracker({
     mode: 'page',
     pageData: { pageName: 'movies' },
@@ -348,8 +348,8 @@ const Movies: React.FC = () => {
 
       // Check for cached data first (only for first page)
       if (pageNumber === 1) {
-        const cachedData = sessionStorage.getItem('movix_movies_data');
-        const cacheTimestamp = sessionStorage.getItem('movix_movies_data_timestamp');
+        const cachedData = sessionStorage.getItem('LKSTV_movies_data');
+        const cacheTimestamp = sessionStorage.getItem('LKSTV_movies_data_timestamp');
 
         // Use cache if it exists and is less than 15 minutes old
         if (cachedData && cacheTimestamp) {
@@ -655,8 +655,8 @@ const Movies: React.FC = () => {
           categories: [] // Categories will be regenerated from movies
         };
 
-        sessionStorage.setItem('movix_movies_data', JSON.stringify(cacheData));
-        sessionStorage.setItem('movix_movies_data_timestamp', Date.now().toString());
+        sessionStorage.setItem('LKSTV_movies_data', JSON.stringify(cacheData));
+        sessionStorage.setItem('LKSTV_movies_data_timestamp', Date.now().toString());
       }
     } catch (error) {
       console.error('Error fetching movies:', error);
@@ -673,8 +673,8 @@ const Movies: React.FC = () => {
 
   // Fetch representative TMDB images for each genre and cache for 1 day
   useEffect(() => {
-    const cacheKey = 'movix_movie_genre_images';
-    const cacheTsKey = 'movix_movie_genre_images_ts';
+    const cacheKey = 'LKSTV_movie_genre_images';
+    const cacheTsKey = 'LKSTV_movie_genre_images_ts';
     const cached = sessionStorage.getItem(cacheKey);
     const cachedTs = sessionStorage.getItem(cacheTsKey);
     const oneDayMs = 24 * 60 * 60 * 1000;
@@ -855,7 +855,7 @@ const Movies: React.FC = () => {
 
   useEffect(() => {
     // Simple title for Movies page
-    document.title = `${t('movies.title')} - Movix`;
+    document.title = `${t('movies.title')} - LKS TV`;
   }, []);
 
   React.useEffect(() => {
@@ -978,8 +978,6 @@ const Movies: React.FC = () => {
             </LazySection>
           </div>
         ))}
-
-        <TelegramPromotion />
 
         {/* Movie Category Rows - replaced by unified EmblaCarousel above */}
       </div>

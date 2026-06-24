@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import HeroSlider from '../components/HeroSlider';
@@ -329,7 +329,7 @@ const TVShows: React.FC = () => {
     { id: 10768, name: 'Guerre & Politique', route: '/genre/tv/10768' },
   ]);
 
-  // Track page visit for Movix Wrapped
+  // Track page visit for LKS TV Wrapped
   useWrappedTracker({
     mode: 'page',
     pageData: { pageName: 'tv-shows' },
@@ -410,8 +410,8 @@ const TVShows: React.FC = () => {
       setLoading(true);
 
       // Check for cached data first
-      const cachedData = sessionStorage.getItem('movix_tvshows_data');
-      const cacheTimestamp = sessionStorage.getItem('movix_tvshows_data_timestamp');
+      const cachedData = sessionStorage.getItem('LKSTV_tvshows_data');
+      const cacheTimestamp = sessionStorage.getItem('LKSTV_tvshows_data_timestamp');
 
       // Use cache if it exists and is less than 15 minutes old
       if (cachedData && cacheTimestamp) {
@@ -645,8 +645,8 @@ const TVShows: React.FC = () => {
         categories: [] // Categories will be regenerated from tvShows
       };
 
-      sessionStorage.setItem('movix_tvshows_data', JSON.stringify(cacheData));
-      sessionStorage.setItem('movix_tvshows_data_timestamp', Date.now().toString());
+      sessionStorage.setItem('LKSTV_tvshows_data', JSON.stringify(cacheData));
+      sessionStorage.setItem('LKSTV_tvshows_data_timestamp', Date.now().toString());
     } catch (error) {
       console.error('Error fetching TV shows:', error);
       setError(t('home.errorLoadingData'));
@@ -661,8 +661,8 @@ const TVShows: React.FC = () => {
 
   // Fetch representative TMDB images for each TV genre and cache for 24h
   useEffect(() => {
-    const cacheKey = 'movix_tv_genre_images';
-    const cacheTsKey = 'movix_tv_genre_images_ts';
+    const cacheKey = 'LKSTV_tv_genre_images';
+    const cacheTsKey = 'LKSTV_tv_genre_images_ts';
     const cached = sessionStorage.getItem(cacheKey);
     const cachedTs = sessionStorage.getItem(cacheTsKey);
     const oneDayMs = 24 * 60 * 60 * 1000;
@@ -706,7 +706,7 @@ const TVShows: React.FC = () => {
 
   useEffect(() => {
     // Simple title for TV Shows page
-    document.title = `${t('tvShows.title')} - Movix`;
+    document.title = `${t('tvShows.title')} - LKS TV`;
   }, []);
 
   // Auto-rotate featured shows
@@ -869,7 +869,6 @@ const TVShows: React.FC = () => {
           </div>
         ))}
 
-        <TelegramPromotion />
       </div>
 
       {/* Spacer div to maintain structure */}

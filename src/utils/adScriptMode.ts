@@ -1,4 +1,4 @@
-// Ad-network <script> mode for the "Voir une pub" button popup (normal mode).
+﻿// Ad-network <script> mode for the "Voir une pub" button popup (normal mode).
 //
 // When enabled, the normal-mode popup loads this ad-network script instead of
 // opening the direct link (utils/adAdultMode). The script is pre-configured on
@@ -15,7 +15,7 @@ export const SCRIPT_AD_MODE_ENABLED = false;
 export const AD_SCRIPT_SRC = '//vf.amildarrobomb.com/r7gP5R6D5YTruZr/142815';
 
 // Marker attribute used to keep injection idempotent.
-const AD_SCRIPT_MARKER = 'data-movix-ad-script';
+const AD_SCRIPT_MARKER = 'data-LKS TV-ad-script';
 
 export const isScriptAdModeEnabled = (): boolean => SCRIPT_AD_MODE_ENABLED;
 

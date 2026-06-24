@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import axios from 'axios';
@@ -24,6 +24,7 @@ import { getTmdbLanguage } from '../i18n';
 import i18n from '../i18n';
 import { useProfile } from '../context/ProfileContext';
 import { getClassificationLabel as getClassificationLabelUtil, isContentAllowed } from '../utils/certificationUtils';
+import { profileStorageKey } from '../services/lkstvProfileService';
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -1205,15 +1206,15 @@ const VideoPlayer = ({ movieId, backdropPath }: { movieId: string; backdropPath?
     }
   }, [selectedDarkinoSource, selectedSource, darkinoSources, m3u8Timeout]); // Add m3u8Timeout dependency
 
-  // Helper function to transform coflix.upn display name to movix
+  // Helper function to transform coflix.upn display name to LKS TV
   const getDisplayName = (quality: string) => {
     if (!quality) return '';
 
     let displayName = quality;
 
-    // Replace coflix.upn with movix
+    // Replace coflix.upn with LKS TV
     if (displayName.includes('coflix.upn')) {
-      displayName = displayName.replace('coflix.upn', 'movix');
+      displayName = displayName.replace('coflix.upn', 'LKS TV');
     }
 
     // Format "PAS DE PUBLICITE" to title case
@@ -1947,7 +1948,7 @@ const MovieDetails = (): JSX.Element => {
   const { resetVipStatus } = useAdFreePopup(); // Récupérer la fonction reset
   const { currentProfile } = useProfile();
 
-  // Track page visit for Movix Wrapped
+  // Track page visit for LKS TV Wrapped
   useWrappedTracker({
     mode: 'page',
     pageData: id ? { pageName: 'movie-details', contentId: id } : undefined,
@@ -2572,9 +2573,9 @@ const MovieDetails = (): JSX.Element => {
       setIsReleased(releaseDate ? releaseDate <= new Date() : true);
 
       // Simple movie title
-      document.title = `${movie.title} - Movix`;
+      document.title = `${movie.title} - LKS TV`;
     } else {
-      document.title = 'Film - Movix';
+      document.title = 'Film - LKS TV';
     }
   }, [movie, id]);
 
@@ -2683,7 +2684,7 @@ const MovieDetails = (): JSX.Element => {
   useEffect(() => {
     // Load watch progress when movie ID changes
     if (id) {
-      const progressKey = `progress_${id}`;
+      const progressKey = profileStorageKey(`progress_${id}`);
       const savedData = localStorage.getItem(progressKey);
 
       if (savedData) {
@@ -2749,12 +2750,12 @@ const MovieDetails = (): JSX.Element => {
   const movieYear = movie.release_date && !isNaN(new Date(movie.release_date).getTime())
     ? new Date(movie.release_date).getFullYear()
     : null;
-  const movieTitle = movieYear ? `${movie.title} (${movieYear}) - Movix` : `${movie.title} - Movix`;
+  const movieTitle = movieYear ? `${movie.title} (${movieYear}) - LKS TV` : `${movie.title} - LKS TV`;
   const movieCanonicalUrl = buildSiteUrl(`/movie/${encodedId || id}`);
   const movieSocialImage = movie.backdrop_path || movie.poster_path
     ? `https://image.tmdb.org/t/p/original${movie.backdrop_path || movie.poster_path}`
     : undefined;
-  const movieDescription = movie.overview?.trim() || `Découvrez ${movie.title} sur Movix.`;
+  const movieDescription = movie.overview?.trim() || `Découvrez ${movie.title} sur LKS TV.`;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -4106,7 +4107,7 @@ const MovieDetails = (): JSX.Element => {
                                     onError={(e) => {
                                       const target = e.target as HTMLImageElement;
                                       target.onerror = null;
-                                      target.src = 'data:image/svg+xml;utf8,<svg width="500" height="750" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 750" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="%23333"/><text x="50%" y="50%" fill="%23ccc" font-size="50" font-family="Arial, sans-serif" text-anchor="middle" dy=".3em">MOVIX</text></svg>';
+                                      target.src = 'data:image/svg+xml;utf8,<svg width="500" height="750" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 750" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="%23333"/><text x="50%" y="50%" fill="%23ccc" font-size="50" font-family="Arial, sans-serif" text-anchor="middle" dy=".3em">LKS TV</text></svg>';
                                     }}
                                   />
 
@@ -4121,7 +4122,7 @@ const MovieDetails = (): JSX.Element => {
                                         onError={(e) => {
                                           const target = e.target as HTMLImageElement;
                                           target.onerror = null;
-                                          target.src = 'data:image/svg+xml;utf8,<svg width="500" height="281" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 281" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="%23333"/><text x="50%" y="50%" fill="%23ccc" font-size="30" font-family="Arial, sans-serif" text-anchor="middle" dy=".3em">MOVIX</text></svg>';
+                                          target.src = 'data:image/svg+xml;utf8,<svg width="500" height="281" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 281" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="%23333"/><text x="50%" y="50%" fill="%23ccc" font-size="30" font-family="Arial, sans-serif" text-anchor="middle" dy=".3em">LKS TV</text></svg>';
                                         }}
                                       />
 

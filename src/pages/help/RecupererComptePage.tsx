@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KeyRound, AlertTriangle } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -8,7 +8,7 @@ const RecupererComptePage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.recupererCompte.title')} — Movix`;
+    document.title = `${t('help.recupererCompte.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

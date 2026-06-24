@@ -181,7 +181,8 @@ async function fetchMergedSearchData(title) {
   }
 
   if (!searchData && !titlesData && !addableCategory15Results && !addableCategory2Results) {
-    throw searchError || titlesError || new Error('Erreur lors de la recherche');
+    // Tous les providers sont injoignables (Darkino down, réseau, etc.) → résultats vides
+    return { results: [], query: title };
   }
 
   return buildMergedSearchResponse(title, searchData, titlesData, addableCategory15Results, addableCategory2Results);

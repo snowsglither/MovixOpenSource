@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import { ArrowLeft, Search, Clapperboard, Drama, RotateCcw, EyeOff, Ticket } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +18,7 @@ const NotFound = () => {
   const Icon = VARIANT_ICONS[variant - 1];
 
   useEffect(() => {
-    document.title = '404 - Movix';
+    document.title = '404 - LKS TV';
   }, []);
 
   return (

@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+﻿import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -10,17 +10,17 @@ import { registerBlockDetection } from './services/blockDetection'
 import './index.css'
 import './styles/light-mode.css'
 
-type MovixConsoleWarningWindow = Window & {
-  __movixConsoleSafetyWarningStarted?: boolean;
-  __movixConsoleSafetyWarningTimerId?: number;
+type LKSTVConsoleWarningWindow = Window & {
+  __LKSTVConsoleSafetyWarningStarted?: boolean;
+  __LKSTVConsoleSafetyWarningTimerId?: number;
 };
 
-type MovixConsoleWarningLine = {
+type LKSTVConsoleWarningLine = {
   text: string;
   style: string;
 };
 
-const MOVIX_CONSOLE_SAFETY_WARNING_LINES: MovixConsoleWarningLine[] = [
+const LKSTV_CONSOLE_SAFETY_WARNING_LINES: LKSTVConsoleWarningLine[] = [
   {
     text: 'ATTENDS !',
     style: [
@@ -51,7 +51,7 @@ const MOVIX_CONSOLE_SAFETY_WARNING_LINES: MovixConsoleWarningLine[] = [
     ].join('; '),
   },
   {
-    text: 'Coller quelque chose ici peut donner a un attaquant acces a ton compte Movix.',
+    text: 'Coller quelque chose ici peut donner a un attaquant acces a ton compte LKS TV.',
     style: [
       'font-size: 22px',
       'font-weight: 900',
@@ -80,9 +80,9 @@ const MOVIX_CONSOLE_SAFETY_WARNING_LINES: MovixConsoleWarningLine[] = [
   },
 ];
 
-const emitMovixConsoleSafetyWarning = () => {
+const emitLKSTVConsoleSafetyWarning = () => {
   console.log(
-    '%c MOVIX SECURITY WARNING ',
+    '%c LKS TV SECURITY WARNING ',
     [
       'font-size: 16px',
       'font-weight: 900',
@@ -96,29 +96,29 @@ const emitMovixConsoleSafetyWarning = () => {
     ].join('; ')
   );
 
-  MOVIX_CONSOLE_SAFETY_WARNING_LINES.forEach((line) => {
+  LKSTV_CONSOLE_SAFETY_WARNING_LINES.forEach((line) => {
     console.log(`%c${line.text}`, line.style);
   });
 };
 
-const startMovixConsoleSafetyWarning = () => {
+const startLKSTVConsoleSafetyWarning = () => {
   if (typeof window === 'undefined') return;
 
-  const globalWindow = window as MovixConsoleWarningWindow;
-  if (globalWindow.__movixConsoleSafetyWarningStarted) return;
+  const globalWindow = window as LKSTVConsoleWarningWindow;
+  if (globalWindow.__LKSTVConsoleSafetyWarningStarted) return;
 
-  globalWindow.__movixConsoleSafetyWarningStarted = true;
+  globalWindow.__LKSTVConsoleSafetyWarningStarted = true;
 
-  emitMovixConsoleSafetyWarning();
-  window.setTimeout(emitMovixConsoleSafetyWarning, 700);
-  window.setTimeout(emitMovixConsoleSafetyWarning, 1400);
+  emitLKSTVConsoleSafetyWarning();
+  window.setTimeout(emitLKSTVConsoleSafetyWarning, 700);
+  window.setTimeout(emitLKSTVConsoleSafetyWarning, 1400);
   // The previous 30s setInterval kept printing forever, blocking idle and
   // flooding the DevTools console for power users. The three staggered
   // emissions above cover the case where devtools opens slightly after page
   // load; that's enough deterrent without permanent main-thread work. — perf
 };
 
-startMovixConsoleSafetyWarning();
+startLKSTVConsoleSafetyWarning();
 
 // Register block detection on both the default axios (used by most services)
 // and the api instance (used by contentAPI). Both need their own interceptors

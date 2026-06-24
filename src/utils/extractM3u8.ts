@@ -1,5 +1,5 @@
-// Utility functions to extract m3u8 URLs from supervideo and dropload players
-import { isUserVip } from './authUtils';
+﻿// Utility functions to extract m3u8 URLs from supervideo and dropload players
+import { isUserVip, isUserAuthenticated } from './authUtils';
 import { getVipHeaders } from './vipUtils';
 import { PROXIES_EMBED_API, buildProxyUrl } from '../config/runtime';
 import { isM3u8ExtractorEnabled } from './extractionPrefs';
@@ -10,6 +10,17 @@ import type { PriorityCategory, TopLevelSourceId, LanguageId } from '../types/so
 
 // Cache pour stocker les URLs qui ont échoué pour éviter les re-tentatives
 const failedUrlsCache = new Set<string>();
+
+/**
+ * Vérifie si l'utilisateur peut utiliser les extracteurs serveur.
+ * Conditions : VIP actif OU compte connecté OU environnement de développement local.
+ */
+function canUseExtractor(): boolean {
+  if (import.meta.env.DEV) return true;       // bypass en dev local (Vite)
+  if (isUserVip()) return true;               // utilisateur VIP
+  if (isUserAuthenticated()) return true;     // utilisateur connecté (non-VIP)
+  return false;
+}
 
 /**
  * Helper interne : détection d'hoster via le registre + prefs utilisateur.
@@ -26,25 +37,25 @@ function detectHosterFromPrefs(url: string): string | null {
 
 // Constante pour le serveur proxy embed
 // ===== Extension Nexus Extractors Bridge =====
-// When the Movix extension is installed, extraction runs locally (no server needed).
+// When the LKS TV extension is installed, extraction runs locally (no server needed).
 // Falls back to server-side extraction when extension is not available.
 
 declare global {
   interface Window {
-    hasMovixExtension?: boolean;
-    hasMovixNexusExtractor?: boolean;
-    movixExtractM3u8?: (type: string | null, url: string) => Promise<M3u8Result>;
-    movixExtractAllM3u8?: (sources: (string | PlayerInfo)[]) => Promise<{ success: boolean; total: number; successCount: number; results: any[] }>;
-    movixDetectEmbeds?: (sources: (string | PlayerInfo)[]) => Promise<{ embeds: any[] }>;
-    movixSetupHeaders?: (type: string, url: string) => Promise<{ success: boolean; error?: string }>;
+    hasLKSTVExtension?: boolean;
+    hasLKSTVNexusExtractor?: boolean;
+    LKSTVExtractM3u8?: (type: string | null, url: string) => Promise<M3u8Result>;
+    LKSTVExtractAllM3u8?: (sources: (string | PlayerInfo)[]) => Promise<{ success: boolean; total: number; successCount: number; results: any[] }>;
+    LKSTVDetectEmbeds?: (sources: (string | PlayerInfo)[]) => Promise<{ embeds: any[] }>;
+    LKSTVSetupHeaders?: (type: string, url: string) => Promise<{ success: boolean; error?: string }>;
   }
 }
 
 /**
- * Check if the Movix extension with Nexus extractors is available
+ * Check if the LKS TV extension with Nexus extractors is available
  */
 function hasNexusExtractors(): boolean {
-  return !!(window.hasMovixNexusExtractor && window.movixExtractM3u8);
+  return !!(window.hasLKSTVNexusExtractor && window.LKSTVExtractM3u8);
 }
 
 /**
@@ -69,7 +80,7 @@ async function waitForNexusExtractors(timeoutMs = 1500): Promise<boolean> {
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
       }
-      window.removeEventListener('movix-extension-loaded', handleLoaded);
+      window.removeEventListener('LKS TV-extension-loaded', handleLoaded);
     };
 
     const finish = (ready: boolean) => {
@@ -83,7 +94,7 @@ async function waitForNexusExtractors(timeoutMs = 1500): Promise<boolean> {
       finish(hasNexusExtractors());
     };
 
-    window.addEventListener('movix-extension-loaded', handleLoaded, { once: true });
+    window.addEventListener('LKS TV-extension-loaded', handleLoaded, { once: true });
 
     intervalId = window.setInterval(() => {
       if (hasNexusExtractors()) {
@@ -103,30 +114,30 @@ async function waitForNexusExtractors(timeoutMs = 1500): Promise<boolean> {
 async function tryExtensionFirst(type: string, url: string, serverFallback: () => Promise<M3u8Result | null>): Promise<M3u8Result | null> {
   const extensionReady = hasNexusExtractors() || await waitForNexusExtractors();
 
-  if (extensionReady && window.movixExtractM3u8) {
+  if (extensionReady && window.LKSTVExtractM3u8) {
     try {
       console.log(`[NEXUS] Using extension for ${type} extraction: ${url}`);
-      const result = await window.movixExtractM3u8!(type, url);
+      const result = await window.LKSTVExtractM3u8!(type, url);
       if (result && result.success) {
         console.log(`[NEXUS] Extension extraction success for ${type}`);
         return result;
       }
-      // Extension failed - only fallback to server if VIP
-      if (isUserVip()) {
-        console.warn(`[NEXUS] Extension failed for ${type}, falling back to server (VIP)`);
+      // Extension failed - fallback to server if user can use extractor
+      if (canUseExtractor()) {
+        console.warn(`[NEXUS] Extension failed for ${type}, falling back to server`);
         return serverFallback();
       }
-      console.warn(`[NEXUS] Extension failed for ${type}, no server fallback (non-VIP)`);
+      console.warn(`[NEXUS] Extension failed for ${type}, no server fallback (non connecté)`);
       return result || { success: false, error: `${type} extraction failed via extension` };
     } catch (e) {
       console.warn(`[NEXUS] Extension error for ${type}:`, e);
-      if (isUserVip()) {
+      if (canUseExtractor()) {
         return serverFallback();
       }
       return { success: false, error: `Extension error for ${type}` };
     }
   }
-  // No extension - server requires VIP (checked inside server functions)
+  // No extension - server requires auth (checked inside server functions)
   return serverFallback();
 }
 
@@ -348,9 +359,8 @@ export async function extractVoeM3u8(
 }
 
 async function extractVoeM3u8Server(voeUrl: string): Promise<M3u8Result | null> {
-  const isVip = isUserVip();
-  if (!isVip) {
-    return { success: false, error: 'Accès VOE réservé aux utilisateurs VIP ou connectés' };
+  if (!canUseExtractor()) {
+    return { success: false, error: 'Extraction réservée aux utilisateurs connectés ou VIP' };
   }
 
   if (failedUrlsCache.has(voeUrl)) {
@@ -419,11 +429,10 @@ export async function extractUqloadFile(
 }
 
 async function extractUqloadFileServer(uqloadUrl: string): Promise<M3u8Result | null> {
-  const isVip = isUserVip();
-  if (!isVip) {
+  if (!canUseExtractor()) {
     return {
       success: false,
-      error: 'Accès UQLOAD réservé aux utilisateurs VIP ou connectés'
+      error: 'Extraction réservée aux utilisateurs connectés ou VIP'
     };
   }
 
@@ -600,11 +609,10 @@ export async function extractVidzyM3u8(
 }
 
 async function extractVidzyM3u8Server(vidzyUrl: string): Promise<M3u8Result | null> {
-  const isVip = isUserVip();
-  if (!isVip) {
+  if (!canUseExtractor()) {
     return {
       success: false,
-      error: 'Accès Vidzy réservé aux utilisateurs VIP ou connectés'
+      error: 'Extraction réservée aux utilisateurs connectés ou VIP'
     };
   }
 
@@ -683,9 +691,8 @@ async function extractFsvidM3u8Server(fsvidUrl: string): Promise<M3u8Result | nu
     return { success: false, error: 'Extractions Fsvid désactivées' };
   }
 
-  const isVip = isUserVip();
-  if (!isVip) {
-    return { success: false, error: 'Accès Fsvid réservé aux utilisateurs VIP' };
+  if (!canUseExtractor()) {
+    return { success: false, error: 'Extraction réservée aux utilisateurs connectés ou VIP' };
   }
 
   if (!fsvidUrl) return null;
@@ -744,9 +751,8 @@ export async function extractVidmolyM3u8(
 }
 
 async function extractVidmolyM3u8Server(vidmolyUrl: string): Promise<M3u8Result | null> {
-  const isVip = isUserVip();
-  if (!isVip) {
-    return { success: false, error: 'Accès Vidmoly réservé aux utilisateurs VIP ou connectés' };
+  if (!canUseExtractor()) {
+    return { success: false, error: 'Extraction réservée aux utilisateurs connectés ou VIP' };
   }
 
   if (failedUrlsCache.has(vidmolyUrl)) {
@@ -812,9 +818,8 @@ export async function extractSibnetM3u8(
 }
 
 async function extractSibnetM3u8Server(sibnetUrl: string): Promise<M3u8Result | null> {
-  const isVip = isUserVip();
-  if (!isVip) {
-    return { success: false, error: 'Accès Sibnet réservé aux utilisateurs VIP ou connectés' };
+  if (!canUseExtractor()) {
+    return { success: false, error: 'Extraction réservée aux utilisateurs connectés ou VIP' };
   }
 
   if (failedUrlsCache.has(sibnetUrl)) {
@@ -1016,10 +1021,9 @@ export function detectSupportedEmbeds(
       });
     }
 
-    // Détection VOE et UQLOAD (VIP requis sauf si extension Nexus installée)
-    const isVip = isUserVip();
+    // Détection VOE et UQLOAD (connecté ou VIP requis, sauf si extension Nexus installée)
     const hasExtension = hasNexusExtractors();
-    const canAccess = isVip || hasExtension;
+    const canAccess = canUseExtractor() || hasExtension;
     
     if (urlLower.includes('voe.sx') && isVoeExtractionEnabled() && canAccess) {
       detectedEmbeds.push({
@@ -1155,10 +1159,10 @@ export async function extractM3u8OnDetection(
   const extensionReady = hasNexusExtractors() || await waitForNexusExtractors();
 
   // If extension with Nexus extractors is available, use its bulk extraction for better performance
-  if (extensionReady && window.movixExtractAllM3u8) {
-    console.log('🔌 Using Movix Extension Nexus extractors for parallel extraction');
+  if (extensionReady && window.LKSTVExtractAllM3u8) {
+    console.log('🔌 Using LKS TV Extension Nexus extractors for parallel extraction');
     try {
-      const extensionResult = await window.movixExtractAllM3u8(sources);
+      const extensionResult = await window.LKSTVExtractAllM3u8(sources);
       if (extensionResult && extensionResult.results) {
         return extensionResult.results.map((r: any) => ({
           type: r.type || 'unknown',
@@ -1408,9 +1412,8 @@ export async function extractDoodStreamFile(
 }
 
 async function extractDoodStreamFileServer(doodUrl: string): Promise<M3u8Result | null> {
-  const isVip = isUserVip();
-  if (!isVip) {
-    return { success: false, error: 'Accès DoodStream réservé aux utilisateurs VIP ou connectés' };
+  if (!canUseExtractor()) {
+    return { success: false, error: 'Extraction réservée aux utilisateurs connectés ou VIP' };
   }
 
   if (failedUrlsCache.has(doodUrl)) {
@@ -1461,9 +1464,8 @@ export async function extractSeekStreamingM3u8(
 }
 
 async function extractSeekStreamingM3u8Server(seekUrl: string): Promise<M3u8Result | null> {
-  const isVip = isUserVip();
-  if (!isVip) {
-    return { success: false, error: 'Accès SeekStreaming réservé aux utilisateurs VIP ou connectés' };
+  if (!canUseExtractor()) {
+    return { success: false, error: 'Extraction réservée aux utilisateurs connectés ou VIP' };
   }
 
   if (failedUrlsCache.has(seekUrl)) {

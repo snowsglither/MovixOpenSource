@@ -40,6 +40,7 @@ function domainRestriction(req, res, next) {
 
   const allowedDomains = [
     'localhost:3000',
+    '192.168.0.37:3000',
     'movix.tax',
     'movix.cash',
     'movix.blog',
@@ -54,6 +55,11 @@ function domainRestriction(req, res, next) {
 
   const origin = req.get('origin');
   const referer = req.get('referer');
+
+  // Allow direct server-to-server / curl / local requests (no origin header)
+  if (!origin && !referer) {
+    return next();
+  }
 
   let isAllowed = false;
 

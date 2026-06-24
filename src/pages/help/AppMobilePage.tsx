@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Smartphone } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -9,7 +9,7 @@ const AppMobilePage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.appMobile.title')} — Movix`;
+    document.title = `${t('help.appMobile.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

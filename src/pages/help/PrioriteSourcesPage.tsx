@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListOrdered, GripVertical, Pin, Settings, RotateCcw } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -10,7 +10,7 @@ const PrioriteSourcesPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.prioriteSources.title')} — Movix`;
+    document.title = `${t('help.prioriteSources.title')} — LKS TV`;
   }, [t]);
 
   const stepIcons = {

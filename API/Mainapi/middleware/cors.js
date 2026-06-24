@@ -41,8 +41,8 @@ const corsMiddleware = cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
-    // Allow all localhost requests in development only
-    if (process.env.NODE_ENV !== 'production' && origin.match(/^https?:\/\/localhost(:[0-9]+)?$/)) {
+    // Allow all localhost and LAN requests in development
+    if (process.env.NODE_ENV !== 'production' && origin.match(/^https?:\/\/(localhost|192\.168\.\d+\.\d+)(:[0-9]+)?$/)) {
       return callback(null, true);
     }
 

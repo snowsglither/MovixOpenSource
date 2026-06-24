@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1858,7 +1858,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({ contentType, contentI
                 {t('comments.requestPage')}
               </Link>
               <a
-                href="https://t.me/movix_site"
+                href="https://t.me/LKSTV_site"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"

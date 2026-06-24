@@ -1,4 +1,4 @@
-// src/components/Settings/SourceCard.tsx
+﻿// src/components/Settings/SourceCard.tsx
 //
 // Card présentant une source top-level (Films/Séries) dans le panneau
 // "Priorité des sources". Compose :
@@ -32,7 +32,7 @@ export const SOURCE_LABELS: Record<TopLevelSourceId, string> = {
   vostfr: 'Vostfr',
   viper: 'Viper',
   vox: 'Vox',
-  custom: 'Lecteur Movix',
+  custom: 'Lecteur LKS TV',
 };
 
 interface SwitchProps {

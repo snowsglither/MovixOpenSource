@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
 import { SITE_URL } from '../config/runtime';
@@ -24,7 +24,7 @@ const SEO: React.FC<SEOProps> = (props) => {
     title = t('seo.defaultTitle'),
     description = t('seo.defaultDescription'),
     keywords = t('seo.defaultKeywords'),
-    ogImage = '/movix.png',
+    ogImage = '/LKS TV.png',
     ogUrl = SITE_URL,
     ogType = 'website',
     twitterCard = 'summary_large_image',
@@ -37,7 +37,7 @@ const SEO: React.FC<SEOProps> = (props) => {
       { lang: 'x-default', href: SITE_URL },
     ],
   } = props;
-  const siteName = 'Movix';
+  const siteName = 'LKS TV';
   
   return (
     <Helmet>

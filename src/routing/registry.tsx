@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from 'react';
+﻿import type { ComponentType, ReactNode } from 'react';
 import { lazyWithRetry } from './lazyWithRetry';
 import DetailsSkeleton from '../components/skeletons/DetailsSkeleton';
 import GridSkeleton from '../components/skeletons/GridSkeleton';
@@ -78,8 +78,11 @@ export const ROUTES: RouteEntry[] = [
   { path: '/vip/invoice/:publicId',   loader: lz(() => import('../pages/VipInvoicePage')) },
   { path: '/vip/cadeau/:giftToken',   loader: lz(() => import('../pages/VipGiftPage')) },
 
+  // Téléchargements hors-ligne
+  { path: '/downloads',               loader: lz(() => import('../pages/DownloadsPage')) },
+
   // Other
-  { path: '/about',                   loader: lz(() => import('../pages/WhatIsMovixPage')) },
+  { path: '/about',                   loader: lz(() => import('../pages/WhatIsLKSTVPage')) },
   { path: '/help/*',                  loader: lz(() => import('../pages/help/HelpRouter')) },
   { path: '/privacy',                 loader: lz(() => import('../pages/Privacy')) },
   { path: '/terms-of-service',        loader: lz(() => import('../pages/TermsOfService')) },

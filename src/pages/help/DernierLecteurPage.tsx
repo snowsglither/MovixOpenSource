@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { History, ToggleRight, ListOrdered } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -10,7 +10,7 @@ const DernierLecteurPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.dernierLecteur.title')} — Movix`;
+    document.title = `${t('help.dernierLecteur.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

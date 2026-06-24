@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useRef, lazy } from 'react';
+﻿import React, { useEffect, useLayoutEffect, useState, useRef, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType, useNavigate, matchPath } from 'react-router-dom';
 import { Toaster } from './components/ui/sonner';
 import { TooltipProvider } from './components/ui/tooltip';
@@ -29,6 +29,8 @@ import { TopProgressBar } from './components/TopProgressBar';
 import SmoothScroll from './components/SmoothScroll';
 import AprilFoolsAdminPage from './pages/AprilFoolsAdminPage';
 import ProfileSelection from './pages/ProfileSelection';
+import ProfileSelector, { STORAGE_KEY as LOCAL_PROFILE_KEY } from './components/ProfileSelector';
+import PinGate from './components/PinGate';
 import { ROUTES, type RouteEntry } from './routing/registry';
 import { DelayedSuspense } from './components/DelayedSuspense';
 import { RouteProgressBar } from './components/RouteProgressBar';
@@ -43,6 +45,7 @@ import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import IntroAnimation from './components/IntroAnimation';
 import { IntroProvider, useIntro } from './context/IntroContext';
 import { APRIL_FOOLS_ADMIN_PATH, isAprilFoolsAdminEnabled } from './utils/aprilFools';
+import { DownloadProvider } from './context/DownloadContext';
 import {
   pushPriorityToExtension,
   subscribeToPriorityChanges,
@@ -1058,7 +1061,7 @@ const PersistenceManager = () => {
     let channel: BroadcastChannel | null = null;
     if (supportsBroadcastChannel && isLocalStorageAvailable) {
       try {
-        channel = new BroadcastChannel('movix-storage-sync');
+        channel = new BroadcastChannel('LKS TV-storage-sync');
         channel.onmessage = (e: MessageEvent) => {
           const data = e.data ?? {};
           const key = data.key;
@@ -1546,6 +1549,33 @@ const DefaultProfileNudge: React.FC = () => {
   );
 };
 
+// Garde locale — affiche ProfileSelector tant qu'aucun profil local n'est choisi.
+// Indépendant de l'auth API : bloque tout le monde au premier lancement.
+const LocalProfileGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [chosen, setChosen] = React.useState<boolean>(
+    () => {
+      try {
+        const raw = sessionStorage.getItem(LOCAL_PROFILE_KEY);
+        if (!raw) return false;
+        const p = JSON.parse(raw);
+        return !!(p && p.id);
+      } catch { return false; }
+    }
+  );
+
+  React.useEffect(() => {
+    const handler = () => setChosen(false);
+    window.addEventListener('lkstv_reset_profile', handler);
+    return () => window.removeEventListener('lkstv_reset_profile', handler);
+  }, []);
+
+  if (!chosen) {
+    return <ProfileSelector onSelect={() => setChosen(true)} />;
+  }
+
+  return <>{children}</>;
+};
+
 // Profile Gate Component - checks if user needs to select a profile
 const ProfileGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentProfile, profiles, isLoading } = useProfile();
@@ -1909,23 +1939,29 @@ function App() {
       <AnimationMotionConfig>
       <SearchProvider>
         <AdFreePopupProvider>
+          <DownloadProvider>
           <AuthProvider>
             <AdWarningProvider>
               <VipModalProvider>
                 <ProfileProvider>
                   <TurnstileProvider>
                     <IntroProvider>
-                      <IOSHomeScreenHandler />
-                      <AppWithIntro />
-                      <TopProgressBar />
-                      <Toaster position="bottom-right" richColors />
-                      <DnsBlockBanner />
+                      <PinGate>
+                        <LocalProfileGate>
+                          <IOSHomeScreenHandler />
+                          <AppWithIntro />
+                          <TopProgressBar />
+                          <Toaster position="bottom-right" richColors />
+                          {/* DnsBlockBanner supprimé — spécifique au domaine Movix */}
+                        </LocalProfileGate>
+                      </PinGate>
                     </IntroProvider>
                   </TurnstileProvider>
                 </ProfileProvider>
               </VipModalProvider>
             </AdWarningProvider>
           </AuthProvider>
+          </DownloadProvider>
         </AdFreePopupProvider>
       </SearchProvider>
       </AnimationMotionConfig>

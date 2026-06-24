@@ -1,4 +1,4 @@
-// Utility functions for Chromecast and AirPlay functionality
+﻿// Utility functions for Chromecast and AirPlay functionality
 import { buildApiProxyUrl } from '../config/runtime';
 
 // AirPlay interfaces
@@ -730,7 +730,7 @@ export const loadMediaOnCast = async (
 export const getHLSContentTypes = (_url: string): string[] => [
   'application/vnd.apple.mpegurl', // RFC 8216, broadest receiver support
   'application/x-mpegurl',         // older Apple variant, lowercase
-  'application/x-mpegURL',         // mixed-case, what Movix used historically
+  'application/x-mpegURL',         // mixed-case, what LKS TV used historically
 ];
 
 /**

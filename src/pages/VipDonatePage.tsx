@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import { motion } from 'framer-motion';
@@ -49,7 +49,7 @@ const PAYMENT_IMAGES = {
   ltc: 'https://upload.wikimedia.org/wikipedia/commons/f/f8/LTC-400.png'
 } as const;
 
-const SUPPORT_TELEGRAM_URL = import.meta.env.VITE_SUPPORT_TELEGRAM_URL || 'https://t.me/movix_site';
+const SUPPORT_TELEGRAM_URL = import.meta.env.VITE_SUPPORT_TELEGRAM_URL || 'https://t.me/LKSTV_site';
 const PAYGATE_MIN_AMOUNT_EUR = 6.25;
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 const VipDonatePage: React.FC = () => {

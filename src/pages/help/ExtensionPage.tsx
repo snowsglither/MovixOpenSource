@@ -1,16 +1,16 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Puzzle, AlertTriangle } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
 import TutoLink from '../../components/TutoLink';
 
-const MOVIX_OPEN_SOURCE_GITHUB_URL = 'https://github.com/movixcorp/MovixOpenSource';
+const LKSTV_OPEN_SOURCE_GITHUB_URL = 'https://github.com/LKSTVcorp/LKSTVOpenSource';
 
 const ExtensionPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.extension.title')} — Movix`;
+    document.title = `${t('help.extension.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [
@@ -29,7 +29,7 @@ const ExtensionPage: React.FC = () => {
         1: <TutoLink to="/extension" />,
         2: (
           <a
-            href={MOVIX_OPEN_SOURCE_GITHUB_URL}
+            href={LKSTV_OPEN_SOURCE_GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-indigo-400 hover:text-indigo-300 underline underline-offset-2 decoration-indigo-500/40 hover:decoration-indigo-400"
@@ -45,7 +45,7 @@ const ExtensionPage: React.FC = () => {
         1: <TutoLink to="/extension" />,
         2: (
           <a
-            href={MOVIX_OPEN_SOURCE_GITHUB_URL}
+            href={LKSTV_OPEN_SOURCE_GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-indigo-400 hover:text-indigo-300 underline underline-offset-2 decoration-indigo-500/40 hover:decoration-indigo-400"

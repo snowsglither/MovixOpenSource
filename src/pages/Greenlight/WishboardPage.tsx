@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import { Popcorn, Plus, Settings, Loader2, HelpCircle, Check, Clock, Search, Zap, X, Ghost, LinkIcon } from 'lucide-react';
@@ -89,7 +89,7 @@ const WishboardPage: React.FC = () => {
 
     const API_URL = import.meta.env.VITE_MAIN_API || '';
 
-    // Movix Wrapped 2026 - Track wishboard page visit time
+    // LKS TV Wrapped 2026 - Track wishboard page visit time
     useWrappedTracker({
         mode: 'page',
         pageData: { pageName: 'wishboard' },

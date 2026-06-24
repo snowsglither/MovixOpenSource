@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+﻿import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useWebHaptics } from 'web-haptics/react';
 import { useTranslation } from 'react-i18next';
 import { useIntro } from '../context/IntroContext';
@@ -131,7 +131,7 @@ const IntroAnimation: React.FC<IntroAnimationProps> = ({ onAnimationComplete }) 
     const parts = ['Mo', 'O', 'V', 'I'].slice(0, Math.min(step + 1, 4));
     let eq = parts.join(' + ');
     if (step >= 5) eq += ' + X';
-    if (step >= 6) eq += ' \u2192 MOVIX';
+    if (step >= 6) eq += ' \u2192 LKS TV';
     return eq;
   }, [step]);
 

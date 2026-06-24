@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+﻿import { NextApiRequest, NextApiResponse } from 'next';
 
 export function securityMiddleware(req: NextApiRequest, res: NextApiResponse, next: () => void) {
   res.setHeader(
@@ -17,7 +17,7 @@ export function securityMiddleware(req: NextApiRequest, res: NextApiResponse, ne
     'geolocation=(), microphone=(), camera=(), payment=()'
   );
 
-  res.setHeader('Access-Control-Allow-Origin', 'https://streammovix.vercel.app');
+  res.setHeader('Access-Control-Allow-Origin', 'https://streamLKS TV.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

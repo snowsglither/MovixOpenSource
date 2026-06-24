@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+﻿import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Star, Calendar, Trash, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
@@ -9,8 +9,9 @@ import { encodeId } from '../utils/idEncoder';
 import { useTmdbImages, prefetchTmdbImages } from '../hooks/useTmdbImages';
 import { useEmblaScrollSuppress } from '../hooks/useEmblaScrollSuppress';
 import './EmblaCarousel.css';
+import { profileStorageKey } from '../services/lkstvProfileService';
 
-const POSTER_FALLBACK = `data:image/svg+xml,${encodeURIComponent('<svg width="500" height="750" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#111"/><text x="50%" y="50%" fill="#444" font-size="36" font-family="sans-serif" text-anchor="middle" dy=".3em">MOVIX</text></svg>')}`;
+const POSTER_FALLBACK = `data:image/svg+xml,${encodeURIComponent('<svg width="500" height="750" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#111"/><text x="50%" y="50%" fill="#444" font-size="36" font-family="sans-serif" text-anchor="middle" dy=".3em">LKS TV</text></svg>')}`;
 
 // Stable frozen constant for non-history carousel items — prevents fresh object
 // identity inside limitedItems.map() from defeating CarouselCard memo. — perf
@@ -82,7 +83,7 @@ const LazyImage: React.FC<LazyImageProps> = ({
   className = '',
   style,
   onError,
-  placeholder = 'data:image/svg+xml;utf8,<svg width="342" height="513" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 342 513" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="%23333"/><text x="50%" y="50%" fill="%23ccc" font-size="38" font-family="Arial, sans-serif" text-anchor="middle" dy=".3em">MOVIX</text></svg>',
+  placeholder = 'data:image/svg+xml;utf8,<svg width="342" height="513" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 342 513" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="%23333"/><text x="50%" y="50%" fill="%23ccc" font-size="38" font-family="Arial, sans-serif" text-anchor="middle" dy=".3em">LKS TV</text></svg>',
   draggable = false,
   priority = false
 }) => {
@@ -608,7 +609,7 @@ const EmblaCarousel: React.FC<EmblaCarouselProps> = ({
   // Function to get movie progress data - memoized
   const getMovieProgress = useCallback((movieId: number): { percentage: number, position?: number, duration?: number } => {
     try {
-      const progressKey = `progress_${movieId}`;
+      const progressKey = profileStorageKey(`progress_${movieId}`);
       const savedData = localStorage.getItem(progressKey);
 
       if (savedData) {
@@ -631,7 +632,7 @@ const EmblaCarousel: React.FC<EmblaCarouselProps> = ({
   // Function to get episode progress data - memoized
   const getEpisodeProgress = useCallback((showId: number, seasonNumber: number, episodeNumber: number): { percentage: number, position?: number, duration?: number } => {
     try {
-      const progressKey = `progress_tv_${showId}_s${seasonNumber}_e${episodeNumber}`;
+      const progressKey = profileStorageKey(`progress_tv_${showId}_s${seasonNumber}_e${episodeNumber}`);
       const savedData = localStorage.getItem(progressKey);
 
       if (savedData) {

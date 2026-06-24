@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
@@ -123,17 +123,17 @@ const AprilFoolsAdminPage: React.FC = () => {
   const fakeVipKeys = useMemo(
     () => [
       {
-        code: 'VIP-MOVIX-4F2K-Q8AZ',
+        code: 'VIP-LKS TV-4F2K-Q8AZ',
         pack: t('aprilAdmin.vipKeys.durationOptions.days365'),
         status: t('aprilAdmin.status.available'),
       },
       {
-        code: 'VIP-MOVIX-9L1X-R7TP',
+        code: 'VIP-LKS TV-9L1X-R7TP',
         pack: t('aprilAdmin.vipKeys.durationOptions.days30'),
         status: t('aprilAdmin.status.queued'),
       },
       {
-        code: 'VIP-MOVIX-7N6C-Z1EF',
+        code: 'VIP-LKS TV-7N6C-Z1EF',
         pack: t('aprilAdmin.vipKeys.durationOptions.lifetime'),
         status: t('aprilAdmin.status.delivered'),
       },
@@ -143,9 +143,9 @@ const AprilFoolsAdminPage: React.FC = () => {
 
   const fakeInvoices = useMemo(
     () => [
-      { id: 'vip_8A42R', amount: '49.99 EUR', payer: 'operator@movix.local', status: t('aprilAdmin.status.confirming') },
-      { id: 'vip_4P19M', amount: '5.00 EUR', payer: 'gift@movix.local', status: t('aprilAdmin.status.partial') },
-      { id: 'vip_7K21Q', amount: '99.00 EUR', payer: 'priority@movix.local', status: t('aprilAdmin.status.readyToValidate') },
+      { id: 'vip_8A42R', amount: '49.99 EUR', payer: 'operator@LKS TV.local', status: t('aprilAdmin.status.confirming') },
+      { id: 'vip_4P19M', amount: '5.00 EUR', payer: 'gift@LKS TV.local', status: t('aprilAdmin.status.partial') },
+      { id: 'vip_7K21Q', amount: '99.00 EUR', payer: 'priority@LKS TV.local', status: t('aprilAdmin.status.readyToValidate') },
     ],
     [t]
   );

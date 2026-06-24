@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Palette } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -7,7 +7,7 @@ const ApparencePage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.apparence.title')} — Movix`;
+    document.title = `${t('help.apparence.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

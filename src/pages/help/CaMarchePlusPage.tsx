@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, ShieldAlert, Shield, Globe, Bug } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -8,11 +8,11 @@ const CaMarchePlusPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.caMarchePlus.title')} — Movix`;
+    document.title = `${t('help.caMarchePlus.title')} — LKS TV`;
   }, [t]);
 
   const telegramUrl =
-    import.meta.env.VITE_SUPPORT_TELEGRAM_URL || 'https://t.me/movix_site';
+    import.meta.env.VITE_SUPPORT_TELEGRAM_URL || 'https://t.me/LKSTV_site';
 
   const sections: TutoSection[] = [
     {
@@ -53,13 +53,13 @@ const CaMarchePlusPage: React.FC = () => {
           bodyKey: 'help.caMarchePlus.cause3Body',
           ctas: [
             {
-              labelKey: 'help.caMarchePlus.cause3CtaMovixHealth',
+              labelKey: 'help.caMarchePlus.cause3CtaLKSTVHealth',
               href: 'https://movix.health',
               external: true,
             },
             {
               labelKey: 'help.caMarchePlus.cause3CtaRentry',
-              href: 'https://rentry.co/movix',
+              href: 'https://rentry.co/LKS TV',
               external: true,
             },
           ],

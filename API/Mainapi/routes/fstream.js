@@ -10,8 +10,11 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const path = require('path');
 const fsp = require('fs').promises;
+const https = require('https');
+const http = require('http');
+const dns = require('dns');
 
-const { getRedis } = require('../config/redis');
+const { redis: redisClient, getRedis } = require('../config/redis');
 const { fetchTmdbDetails } = require('../utils/tmdbCache');
 const {
   CACHE_DIR,
@@ -28,8 +31,134 @@ const { PROXIES, DARKINO_PROXIES, getProxyAgent, getDarkinoHttpProxyAgent } = re
 // === FStream Configuration ===
 const TMDB_API_KEY = process.env.TMDB_API_KEY || '';
 const TMDB_API_URL = 'https://api.themoviedb.org/3';
-const FSTREAM_BASE_URL = 'https://french-stream.one';
-const FSTREAM_SEARCH_URL = `${FSTREAM_BASE_URL}/engine/ajax/search.php`;
+
+// Liste ordonnée de miroirs — l'env var passe en priorité absolue si définie.
+// french-stream.ac confirmé actif et avec DLE complet (2026-06-23).
+const FSTREAM_MIRRORS = [
+  ...(process.env.FSTREAM_BASE_URL ? [process.env.FSTREAM_BASE_URL.replace(/\/$/, '')] : []),
+  'https://french-stream.ac',
+  'https://french-stream.watch',
+  'https://french-stream.re',
+  'https://french-stream.city',
+  'https://french-stream.baby',
+  'https://french-stream.rip',
+  'https://french-stream.me',
+  'https://french-stream.pro',
+  'https://french-stream.link',
+  'https://french-stream.one',
+].filter((v, i, a) => v && a.indexOf(v) === i);
+
+let FSTREAM_BASE_URL = FSTREAM_MIRRORS[0];
+let FSTREAM_SEARCH_URL = `${FSTREAM_BASE_URL}/engine/ajax/search.php`;
+let _mirrorDetectionPromise = null;
+let _lastMirrorCheck = 0;
+const MIRROR_TTL_MS = 60 * 60 * 1000;
+
+// Vérifie qu'un miroir est un vrai site DLE french-stream (et pas un domaine parqué ou bloqué).
+// On teste le endpoint de recherche directement — c'est le seul indicateur fiable.
+async function isMirrorAlive(mirror) {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'fr-FR,fr;q=0.9',
+  };
+
+  // Étape 1 : homepage — détecter blocage FAI ou domaine parqué
+  let homeBody = '';
+  try {
+    const homeRes = await axios.get(`${mirror}/`, {
+      timeout: 6000, maxRedirects: 5,
+      validateStatus: s => s < 500,
+      headers,
+    });
+    homeBody = typeof homeRes.data === 'string' ? homeRes.data : '';
+    if (
+      homeBody.includes('economie.fgov.be') ||
+      homeBody.includes('bapo-blocked') ||
+      homeBody.includes('parklogic') ||
+      homeBody.includes('sedoparking') ||
+      homeBody.includes('domain for sale') ||
+      homeBody.length < 500
+    ) {
+      console.log(`[FStream] ❌ ${mirror} → bloqué/parqué (${homeBody.length} octets)`);
+      return false;
+    }
+  } catch (err) {
+    console.log(`[FStream] ❌ ${mirror} → homepage inaccessible (${err.code || err.message})`);
+    return false;
+  }
+
+  // Étape 2 : vérifier la présence du moteur DLE dans le HTML
+  const hasDLE = (
+    homeBody.includes('dle_login_hash') ||
+    homeBody.includes('/engine/ajax/search.php') ||
+    homeBody.includes('data-news-id') ||
+    homeBody.includes('class="short"') ||
+    homeBody.includes("class='short'") ||
+    homeBody.includes('/engine/modules/')
+  );
+  if (!hasDLE) {
+    console.log(`[FStream] ❌ ${mirror} → pas de moteur DLE détecté (domaine différent ?)`);
+    return false;
+  }
+
+  // Étape 3 : tester le endpoint de recherche avec une requête réelle
+  try {
+    const searchRes = await axios.post(`${mirror}/engine/ajax/search.php`,
+      'query=avengers&user_hash=&search_start=0&full_search=0&result_from=1',
+      {
+        timeout: 6000, maxRedirects: 3,
+        validateStatus: s => s < 500,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Referer': `${mirror}/`,
+          'Origin': mirror,
+        },
+      }
+    );
+    const searchBody = typeof searchRes.data === 'string' ? searchRes.data : JSON.stringify(searchRes.data);
+    // DLE renvoie du HTML avec des résultats ou un message "rien trouvé" — les deux sont valides
+    const isValidDLEResponse = searchRes.status < 400 && searchBody.length > 20;
+    if (!isValidDLEResponse) {
+      console.log(`[FStream] ❌ ${mirror} → search.php ne répond pas (HTTP ${searchRes.status}, ${searchBody.length} octets)`);
+      return false;
+    }
+    console.log(`[FStream] ✅ ${mirror} → DLE OK (home ${homeBody.length}o, search HTTP ${searchRes.status}, ${searchBody.length}o)`);
+    return true;
+  } catch (err) {
+    console.log(`[FStream] ❌ ${mirror} → search.php inaccessible (${err.code || err.message})`);
+    return false;
+  }
+}
+
+async function detectActiveMirror() {
+  const now = Date.now();
+  if (_lastMirrorCheck > 0 && now - _lastMirrorCheck < MIRROR_TTL_MS) return FSTREAM_BASE_URL;
+  if (_mirrorDetectionPromise) return _mirrorDetectionPromise;
+
+  _mirrorDetectionPromise = (async () => {
+    console.log(`[FStream] Détection miroir DLE actif parmi: [${FSTREAM_MIRRORS.join(', ')}]`);
+    for (const mirror of FSTREAM_MIRRORS) {
+      if (await isMirrorAlive(mirror)) {
+        FSTREAM_BASE_URL = mirror;
+        FSTREAM_SEARCH_URL = `${mirror}/engine/ajax/search.php`;
+        _lastMirrorCheck = Date.now();
+        _mirrorDetectionPromise = null;
+        return mirror;
+      }
+    }
+    console.error(`[FStream] ⚠️  Aucun miroir DLE disponible ! Sources VF/VOSTFR indisponibles.`);
+    _mirrorDetectionPromise = null;
+    return FSTREAM_BASE_URL;
+  })();
+
+  return _mirrorDetectionPromise;
+}
+
+// Lancer la détection en arrière-plan dès le chargement du module
+detectActiveMirror().catch(e => console.error('[FStream] Erreur détection miroir:', e.message));
 
 // === FStream Authentication (disabled) ===
 const FSTREAM_LOGIN_NAME = process.env.FSTREAM_LOGIN_NAME || '';
@@ -653,14 +782,86 @@ function getAgentForProxy(entry) {
   return getDarkinoHttpProxyAgent(entry.proxy);
 }
 
+function parseFStreamEpisodesApiResponse(data) {
+  if (!data || typeof data !== 'object') return null;
+  const episodes = {};
+  const langMap = { vf: 'VF', vostfr: 'VOSTFR', vo: 'VOENG' };
+
+  for (const [langKey, langLabel] of Object.entries(langMap)) {
+    const langData = data[langKey];
+    if (!langData || typeof langData !== 'object') continue;
+
+    for (const [epNum, providers] of Object.entries(langData)) {
+      const epNumber = parseInt(epNum);
+      if (isNaN(epNumber) || epNumber === 0) continue;
+
+      if (!episodes[epNumber]) {
+        episodes[epNumber] = {
+          number: epNumber,
+          title: `Episode ${epNumber}`,
+          languages: { VF: [], VOSTFR: [], VOENG: [], Default: [] }
+        };
+      }
+
+      for (const [provider, url] of Object.entries(providers)) {
+        if (!url || typeof url !== 'string' || !url.startsWith('http')) continue;
+        let displayName = provider;
+        if (provider === 'premium') displayName = 'Premium';
+        else if (provider === 'vidzy') displayName = 'Vidzy';
+        else if (provider === 'uqload') displayName = 'Uqload';
+        else if (provider === 'netu') displayName = 'Netu';
+        else if (provider === 'voe') displayName = 'Voe';
+        else displayName = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+        const exists = episodes[epNumber].languages[langLabel].some(p => p.url === url);
+        if (!exists) {
+          episodes[epNumber].languages[langLabel].push({ url, type: 'embed', quality: 'HD', player: displayName });
+        }
+      }
+    }
+  }
+
+  if (data.info && typeof data.info === 'object') {
+    for (const [epNum, info] of Object.entries(data.info)) {
+      const epNumber = parseInt(epNum);
+      if (episodes[epNumber] && info.title) {
+        episodes[epNumber].title = info.title;
+      }
+    }
+  }
+
+  return Object.keys(episodes).length > 0 ? episodes : null;
+}
+
 async function fetchEpisodesFromApi(pageUrl) {
   const pageId = extractPageIdFromUrl(pageUrl);
   if (!pageId) return null;
 
   const baseUrl = extractBaseUrlFromLink(pageUrl);
   const apiUrl = `${baseUrl}/engine/ajax/episodes_p.php?id=${pageId}`;
+  const reqHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Referer': pageUrl,
+    'Accept': 'application/json, text/plain, */*'
+  };
 
   const proxies = getShuffledAllProxies();
+
+  // Requête directe si aucun proxy configuré
+  if (proxies.length === 0) {
+    try {
+      const response = await axios.get(apiUrl, { timeout: 10000, headers: reqHeaders });
+      if (response.status !== 200 || !response.data) return null;
+      const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      const result = parseFStreamEpisodesApiResponse(data);
+      if (result) console.log(`[FStream] episodes_p direct → ${Object.keys(result).length} épisodes pour ${pageId}`);
+      return result;
+    } catch (error) {
+      console.error(`[FStream] Erreur API episodes_p (direct): ${error.message}`);
+      return null;
+    }
+  }
+
   const maxAttempts = Math.min(proxies.length, 3);
   let lastError = null;
 
@@ -673,11 +874,7 @@ async function fetchEpisodesFromApi(pageUrl) {
         method: 'get',
         url: apiUrl,
         timeout: 10000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-          'Referer': pageUrl,
-          'Accept': 'application/json, text/plain, */*'
-        },
+        headers: reqHeaders,
         ...(agents ? { httpAgent: agents.httpAgent || agents, httpsAgent: agents.httpsAgent || agents, proxy: false } : {})
       });
 
@@ -688,59 +885,7 @@ async function fetchEpisodesFromApi(pageUrl) {
       if (response.status !== 200 || !response.data) return null;
 
       const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-      if (!data || typeof data !== 'object') return null;
-
-    const episodes = {};
-    const langMap = { vf: 'VF', vostfr: 'VOSTFR', vo: 'VOENG' };
-
-    for (const [langKey, langLabel] of Object.entries(langMap)) {
-      const langData = data[langKey];
-      if (!langData || typeof langData !== 'object') continue;
-
-      for (const [epNum, providers] of Object.entries(langData)) {
-        const epNumber = parseInt(epNum);
-        if (isNaN(epNumber) || epNumber === 0) continue;
-
-        if (!episodes[epNumber]) {
-          episodes[epNumber] = {
-            number: epNumber,
-            title: `Episode ${epNumber}`,
-            languages: { VF: [], VOSTFR: [], VOENG: [], Default: [] }
-          };
-        }
-
-        for (const [provider, url] of Object.entries(providers)) {
-          if (!url || typeof url !== 'string' || !url.startsWith('http')) continue;
-          let displayName = provider;
-          if (provider === 'premium') displayName = 'Premium';
-          else if (provider === 'vidzy') displayName = 'Vidzy';
-          else if (provider === 'uqload') displayName = 'Uqload';
-          else if (provider === 'netu') displayName = 'Netu';
-          else if (provider === 'voe') displayName = 'Voe';
-          else displayName = provider.charAt(0).toUpperCase() + provider.slice(1);
-
-          const exists = episodes[epNumber].languages[langLabel].some(p => p.url === url);
-          if (!exists) {
-            episodes[epNumber].languages[langLabel].push({ url, type: 'embed', quality: 'HD', player: displayName });
-          }
-        }
-      }
-    }
-
-    // Enrichir avec les infos (titres, synopsis) si disponibles
-    if (data.info && typeof data.info === 'object') {
-      for (const [epNum, info] of Object.entries(data.info)) {
-        const epNumber = parseInt(epNum);
-        if (episodes[epNumber] && info.title) {
-          episodes[epNumber].title = info.title;
-        }
-      }
-    }
-
-      if (Object.keys(episodes).length > 0) {
-        return episodes;
-      }
-      return null;
+      return parseFStreamEpisodesApiResponse(data);
     } catch (error) {
       lastError = error;
       if (error.response?.status === 429) {
@@ -756,14 +901,67 @@ async function fetchEpisodesFromApi(pageUrl) {
   return null;
 }
 
+function parseFStreamFilmApiResponse(data) {
+  if (!data || !data.players || typeof data.players !== 'object') return null;
+  const players = [];
+  const versionMap = { 'default': 'Default', 'vf': 'VF', 'vfq': 'VFQ', 'vff': 'VFF', 'vostfr': 'VOSTFR' };
+
+  for (const [provider, versions] of Object.entries(data.players)) {
+    if (!versions || typeof versions !== 'object') continue;
+    for (const [versionKey, url] of Object.entries(versions)) {
+      if (!url || typeof url !== 'string') continue;
+      let finalUrl = url;
+      if (provider === 'netu' && !url.startsWith('http')) {
+        finalUrl = `https://www.fembed.com/v/${url}`;
+      }
+      if (!finalUrl.startsWith('http')) continue;
+
+      let displayName = provider;
+      if (provider === 'premium') displayName = 'Premium';
+      else if (provider === 'vidzy') displayName = 'Vidzy';
+      else if (provider === 'uqload') displayName = 'Uqload';
+      else if (provider === 'netu') displayName = 'Netu';
+      else if (provider === 'voe') displayName = 'Voe';
+      else if (provider === 'dood') displayName = 'Dood';
+      else if (provider === 'filmoon') displayName = 'Filmoon';
+      else displayName = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+      const version = versionMap[versionKey] || versionKey.toUpperCase();
+      players.push({ url: finalUrl, type: 'embed', quality: 'HD', player: displayName, version });
+    }
+  }
+  return players.length > 0 ? players : null;
+}
+
 async function fetchMoviePlayersFromApi(pageUrl) {
   const pageId = extractPageIdFromUrl(pageUrl);
   if (!pageId) return null;
 
   const baseUrl = extractBaseUrlFromLink(pageUrl);
   const apiUrl = `${baseUrl}/engine/ajax/film_api.php?id=${pageId}`;
+  const reqHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Referer': pageUrl,
+    'Accept': 'application/json, text/plain, */*'
+  };
 
   const proxies = getShuffledAllProxies();
+
+  // Requête directe si aucun proxy configuré
+  if (proxies.length === 0) {
+    try {
+      const response = await axios.get(apiUrl, { timeout: 10000, headers: reqHeaders });
+      if (response.status !== 200 || !response.data) return null;
+      const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+      const result = parseFStreamFilmApiResponse(data);
+      if (result) console.log(`[FStream] film_api direct → ${result.length} sources pour ${pageId}`);
+      return result;
+    } catch (error) {
+      console.error(`[FStream] Erreur API film_api (direct): ${error.message}`);
+      return null;
+    }
+  }
+
   const maxAttempts = Math.min(proxies.length, 3);
   let lastError = null;
 
@@ -776,11 +974,7 @@ async function fetchMoviePlayersFromApi(pageUrl) {
         method: 'get',
         url: apiUrl,
         timeout: 10000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-          'Referer': pageUrl,
-          'Accept': 'application/json, text/plain, */*'
-        },
+        headers: reqHeaders,
         ...(agents ? { httpAgent: agents.httpAgent || agents, httpsAgent: agents.httpsAgent || agents, proxy: false } : {})
       });
 
@@ -791,41 +985,7 @@ async function fetchMoviePlayersFromApi(pageUrl) {
       if (response.status !== 200 || !response.data) return null;
 
       const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-      if (!data || !data.players || typeof data.players !== 'object') return null;
-
-      const players = [];
-      const versionMap = { 'default': 'Default', 'vf': 'VF', 'vfq': 'VFQ', 'vff': 'VFF', 'vostfr': 'VOSTFR' };
-
-      for (const [provider, versions] of Object.entries(data.players)) {
-        if (!versions || typeof versions !== 'object') continue;
-
-        for (const [versionKey, url] of Object.entries(versions)) {
-          if (!url || typeof url !== 'string') continue;
-          let finalUrl = url;
-          if (provider === 'netu' && !url.startsWith('http')) {
-            finalUrl = `https://www.fembed.com/v/${url}`;
-          }
-          if (!finalUrl.startsWith('http')) continue;
-
-          let displayName = provider;
-          if (provider === 'premium') displayName = 'Premium';
-          else if (provider === 'vidzy') displayName = 'Vidzy';
-          else if (provider === 'uqload') displayName = 'Uqload';
-          else if (provider === 'netu') displayName = 'Netu';
-          else if (provider === 'voe') displayName = 'Voe';
-          else if (provider === 'dood') displayName = 'Dood';
-          else if (provider === 'filmoon') displayName = 'Filmoon';
-          else displayName = provider.charAt(0).toUpperCase() + provider.slice(1);
-
-          const version = versionMap[versionKey] || versionKey.toUpperCase();
-          players.push({ url: finalUrl, type: 'embed', quality: 'HD', player: displayName, version });
-        }
-      }
-
-      if (players.length > 0) {
-        return players;
-      }
-      return null;
+      return parseFStreamFilmApiResponse(data);
     } catch (error) {
       lastError = error;
       if (error.response?.status === 429) {
@@ -1252,7 +1412,7 @@ async function extractFStreamSeriesPlayers(htmlContent, pageUrl = null) {
 }
 
 // === Filtering ===
-function filterFStreamResults(results, originalTitle, releaseYear) {
+function filterFStreamResults(results, originalTitle, releaseYear, contentType = null) {
   try {
     const $ = cheerio.load(results);
     const filteredResults = [];
@@ -1268,6 +1428,15 @@ function filterFStreamResults(results, originalTitle, releaseYear) {
         if (linkMatch) link = linkMatch[1];
       }
       if (!title || !link) return;
+
+      // Strict type check: reject wrong content type based on URL slug
+      if (contentType === 'movie') {
+        // A movie URL never contains "saison" — reject series matches
+        if (/saison/i.test(link) || /-serie-/i.test(link)) return;
+      } else if (contentType === 'tv') {
+        // A TV URL always contains "saison" — reject film matches
+        if (/-film-streaming/i.test(link) && !/saison/i.test(link)) return;
+      }
 
       let cleanTitle = title;
       let seasonNumber = null;
@@ -1344,6 +1513,8 @@ function filterFStreamResults(results, originalTitle, releaseYear) {
 // GET /movie/:id
 router.get('/movie/:id', async (req, res) => {
   const { id } = req.params;
+  const activeBase = await detectActiveMirror();
+  console.log(`[FStream] /movie/${id} → base URL active: ${activeBase}`);
   const cacheKey = generateFStreamCacheKey('movie', id);
 
   try {
@@ -1360,7 +1531,7 @@ router.get('/movie/:id', async (req, res) => {
 
             const searchQuery = tmdbDetails.title;
             let searchResults = await searchFStreamDirect(searchQuery);
-            let filteredResults = filterFStreamResults(searchResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0]);
+            let filteredResults = filterFStreamResults(searchResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0], 'movie');
 
             if (filteredResults.length === 0) {
               try {
@@ -1452,7 +1623,7 @@ router.get('/movie/:id', async (req, res) => {
 
       const searchQuery = tmdbDetails.title;
       let searchResults = await searchFStreamDirect(searchQuery);
-      let filteredResults = filterFStreamResults(searchResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0]);
+      let filteredResults = filterFStreamResults(searchResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0], 'movie');
 
       let bestResult = null;
       const tmdbYear = tmdbDetails.release_date?.split('-')[0];
@@ -1557,6 +1728,8 @@ router.get('/tv/:id/season/:season/clear-cache', async (req, res) => {
 router.get('/tv/:id/season/:season', async (req, res) => {
   const { id, season } = req.params;
   const { episode } = req.query;
+  const activeBase = await detectActiveMirror();
+  console.log(`[FStream] /tv/${id}/season/${season} → base URL active: ${activeBase}`);
   const cacheKey = generateFStreamCacheKey('tv', id, season, episode);
 
   try {
@@ -1576,7 +1749,7 @@ router.get('/tv/:id/season/:season', async (req, res) => {
             else { searchQuery = `${tmdbDetails.title} - Saison ${season}`; }
 
             let searchResults = await searchFStreamDirect(searchQuery);
-            let filteredResults = filterFStreamResults(searchResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0]);
+            let filteredResults = filterFStreamResults(searchResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0], 'tv');
 
             if (filteredResults.length === 0) {
               const directSeasonsEarly = await fetchFStreamSeasonSearchResults(id, tmdbDetails.title);
@@ -1587,7 +1760,7 @@ router.get('/tv/:id/season/:season', async (req, res) => {
                 const fallbackQuery = `${tmdbDetails.title} (${year}) - Saison ${season}`;
                 try {
                   let fallbackSearchResults = await searchFStreamDirect(fallbackQuery);
-                  let fallbackFilteredResults = filterFStreamResults(fallbackSearchResults, tmdbDetails.title, year);
+                  let fallbackFilteredResults = filterFStreamResults(fallbackSearchResults, tmdbDetails.title, year, 'tv');
                   if (fallbackFilteredResults.length > 0) filteredResults = fallbackFilteredResults;
                 } catch (fallbackError) {
                   console.log(`[FSTREAM TV BACKGROUND] Erreur lors de la recherche de fallback avec annee: ${fallbackError.message}`);
@@ -1598,7 +1771,7 @@ router.get('/tv/:id/season/:season', async (req, res) => {
                 const noLangFallbackQuery = `${tmdbDetails.name_no_lang} - Saison ${season}`;
                 try {
                   let noLangSearchResults = await searchFStreamDirect(noLangFallbackQuery);
-                  let noLangFilteredResults = filterFStreamResults(noLangSearchResults, tmdbDetails.name_no_lang, tmdbDetails.release_date?.split('-')[0]);
+                  let noLangFilteredResults = filterFStreamResults(noLangSearchResults, tmdbDetails.name_no_lang, tmdbDetails.release_date?.split('-')[0], 'tv');
                   if (noLangFilteredResults.length > 0) {
                     filteredResults = noLangFilteredResults;
                     console.log(`[FSTREAM TV BACKGROUND] Fallback avec nom sans langue reussi: "${noLangFallbackQuery}"`);
@@ -1681,7 +1854,7 @@ router.get('/tv/:id/season/:season', async (req, res) => {
               try {
                 const noNumQuery = `${tmdbDetails.title} - Saison`;
                 const noNumResults = await searchFStreamDirect(noNumQuery);
-                const noNumFiltered = filterFStreamResults(noNumResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0]);
+                const noNumFiltered = filterFStreamResults(noNumResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0], 'tv');
                 const noNumSeasonMatches = noNumFiltered.filter(r => r.seasonNumber === requestedSeason);
                 if (noNumSeasonMatches.length > 0) {
                   bestResult = noNumSeasonMatches.length > 1 && bgTmdbYear ? (noNumSeasonMatches.find(r => r.year === bgTmdbYear) || noNumSeasonMatches[0]) : noNumSeasonMatches[0];
@@ -1740,7 +1913,7 @@ router.get('/tv/:id/season/:season', async (req, res) => {
       else { searchQuery = `${tmdbDetails.title} - Saison ${season}`; }
 
       let searchResults = await searchFStreamDirect(searchQuery);
-      let filteredResults = filterFStreamResults(searchResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0]);
+      let filteredResults = filterFStreamResults(searchResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0], 'tv');
 
       if (filteredResults.length === 0) {
         const directSeasonsEarly = await fetchFStreamSeasonSearchResults(id, tmdbDetails.title);
@@ -1751,7 +1924,7 @@ router.get('/tv/:id/season/:season', async (req, res) => {
           const fallbackQuery = `${tmdbDetails.title} (${year}) - Saison ${season}`;
           try {
             let fallbackSearchResults = await searchFStreamDirect(fallbackQuery);
-            let fallbackFilteredResults = filterFStreamResults(fallbackSearchResults, tmdbDetails.title, year);
+            let fallbackFilteredResults = filterFStreamResults(fallbackSearchResults, tmdbDetails.title, year, 'tv');
             if (fallbackFilteredResults.length > 0) filteredResults = fallbackFilteredResults;
           } catch (fallbackError) {
             console.log(`[FSTREAM TV] Erreur lors de la recherche de fallback avec annee: ${fallbackError.message}`);
@@ -1762,7 +1935,7 @@ router.get('/tv/:id/season/:season', async (req, res) => {
           const noLangFallbackQuery = `${tmdbDetails.name_no_lang} - Saison ${season}`;
           try {
             let noLangSearchResults = await searchFStreamDirect(noLangFallbackQuery);
-            let noLangFilteredResults = filterFStreamResults(noLangSearchResults, tmdbDetails.name_no_lang, tmdbDetails.release_date?.split('-')[0]);
+            let noLangFilteredResults = filterFStreamResults(noLangSearchResults, tmdbDetails.name_no_lang, tmdbDetails.release_date?.split('-')[0], 'tv');
             if (noLangFilteredResults.length > 0) { filteredResults = noLangFilteredResults; console.log(`[FSTREAM TV] Fallback avec nom sans langue reussi: "${noLangFallbackQuery}"`); }
           } catch (noLangFallbackError) {
             console.log(`[FSTREAM TV] Erreur lors de la recherche de fallback avec nom sans langue: ${noLangFallbackError.message}`);
@@ -1812,7 +1985,7 @@ router.get('/tv/:id/season/:season', async (req, res) => {
         try {
           const noNumQuery = `${tmdbDetails.title} - Saison`;
           const noNumResults = await searchFStreamDirect(noNumQuery);
-          const noNumFiltered = filterFStreamResults(noNumResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0]);
+          const noNumFiltered = filterFStreamResults(noNumResults, tmdbDetails.title, tmdbDetails.release_date?.split('-')[0], 'tv');
           const noNumSeasonMatches = noNumFiltered.filter(r => r.seasonNumber === requestedSeason);
           if (noNumSeasonMatches.length > 0) {
             bestResult = noNumSeasonMatches.length > 1 && tmdbYear ? (noNumSeasonMatches.find(r => r.year === tmdbYear) || noNumSeasonMatches[0]) : noNumSeasonMatches[0];
@@ -1896,6 +2069,38 @@ router.get('/test/recent-series', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message, timestamp: new Date().toISOString() });
   }
+});
+
+// GET /purge-all — purge tous les caches FStream (Redis + disque)
+router.get('/purge-all', async (req, res) => {
+  const results = { redis: 0, disk: 0, errors: [] };
+  try {
+    // Purge Redis keys prefixed fstream:
+    const redis = redisClient || (typeof getRedis === 'function' ? getRedis() : null);
+    if (redis) {
+      const keys = await redis.keys('fstream:*');
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        results.redis = keys.length;
+      }
+    }
+  } catch (e) {
+    results.errors.push(`Redis: ${e.message}`);
+  }
+  try {
+    // Purge disk cache JSON files
+    const files = await fsp.readdir(CACHE_DIR.FSTREAM).catch(() => []);
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        await fsp.unlink(path.join(CACHE_DIR.FSTREAM, file)).catch(() => {});
+        results.disk++;
+      }
+    }
+  } catch (e) {
+    results.errors.push(`Disk: ${e.message}`);
+  }
+  console.log(`[FSTREAM] Purge cache: Redis=${results.redis}, Disk=${results.disk}`);
+  res.json({ success: true, purged: results, timestamp: new Date().toISOString() });
 });
 
 // GET /debug/ongoing

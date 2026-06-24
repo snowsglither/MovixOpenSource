@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
@@ -56,7 +56,7 @@ const TelegramPromotion: React.FC = () => {
 
               {/* Bouton Telegram */}
               <motion.a
-                href="https://t.me/movix_site"
+                href="https://t.me/LKSTV_site"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-sky-500 text-white font-medium px-6 py-3 rounded-lg transition-all"

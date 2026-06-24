@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useEffect, useState, useCallback, useRef, startTransition } from 'react';
+﻿import React, { useLayoutEffect, useEffect, useState, useCallback, useRef, startTransition } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -339,7 +339,7 @@ const Top10Page: React.FC = () => {
               <Trophy className="w-8 h-8 text-amber-500" />
             </div>
             <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4 pb-4 flex flex-col items-center gap-1">
-              <ShinyText text="Top 10 Movix" speed={3} color="#ffffff" shineColor="#f59e0b" className="py-2 leading-tight" />
+              <ShinyText text="Top 10 LKS TV" speed={3} color="#ffffff" shineColor="#f59e0b" className="py-2 leading-tight" />
               <ShinyText text={t('top10.ranking')} speed={2} color="#f59e0b" shineColor="#ffffff" className="py-2 leading-tight" />
             </h1>
             <BlurText

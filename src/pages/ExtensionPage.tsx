@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import { ArrowLeft, Puzzle, Shield, Zap, Globe, Download, CheckCircle, AlertTriangle, MonitorSmartphone, Server, Lock, Eye, ChevronDown, Github } from 'lucide-react';
@@ -58,9 +58,9 @@ const faqItemsData = [
   { questionKey: 'extension.faq5Q', answerKey: 'extension.faq5A' },
 ];
 
-const USERSCRIPT_URL = 'https://github.com/movixcorp/MovixOpenSource/tree/main/userscript';
-const USERSCRIPT_INSTALL_URL = 'https://github.com/movixcorp/MovixOpenSource/raw/refs/heads/main/userscript/movix.user.js';
-const MOVIX_OPEN_SOURCE_GITHUB_URL = 'https://github.com/movixcorp/MovixOpenSource';
+const USERSCRIPT_URL = 'https://github.com/LKSTVcorp/LKSTVOpenSource/tree/main/userscript';
+const USERSCRIPT_INSTALL_URL = 'https://github.com/LKSTVcorp/LKSTVOpenSource/raw/refs/heads/main/userscript/LKS TV.user.js';
+const LKSTV_OPEN_SOURCE_GITHUB_URL = 'https://github.com/LKSTVcorp/LKSTVOpenSource';
 const TAMPERMONKEY_URL = 'https://www.tampermonkey.net/';
 
 const installTutorial = {
@@ -73,13 +73,13 @@ const installTutorial = {
   ],
   actions: [
     { href: TAMPERMONKEY_URL, labelKey: 'extension.installTampermonkey', variant: 'secondary' as const },
-    { href: USERSCRIPT_INSTALL_URL, labelKey: 'extension.installMovixUserscript', variant: 'primary' as const },
+    { href: USERSCRIPT_INSTALL_URL, labelKey: 'extension.installLKSTVUserscript', variant: 'primary' as const },
   ],
 };
 
-type MovixExtensionWindow = Window & {
-  __MOVIX_EXTENSION_INSTALLED?: boolean;
-  hasMovixExtension?: boolean;
+type LKSTVExtensionWindow = Window & {
+  __LKSTV_EXTENSION_INSTALLED?: boolean;
+  hasLKSTVExtension?: boolean;
 };
 
 const ExtensionPage: React.FC = () => {
@@ -95,12 +95,12 @@ const ExtensionPage: React.FC = () => {
   // Détecter si l'extension est déjà installée
   useEffect(() => {
     const checkExtension = () => {
-      const movixWindow = window as MovixExtensionWindow;
+      const LKSTVWindow = window as LKSTVExtensionWindow;
 
       if (
-        movixWindow.__MOVIX_EXTENSION_INSTALLED ||
-        movixWindow.hasMovixExtension ||
-        document.documentElement.dataset.movixExtension === 'true'
+        LKSTVWindow.__LKSTV_EXTENSION_INSTALLED ||
+        LKSTVWindow.hasLKSTVExtension ||
+        document.documentElement.dataset.LKSTVExtension === 'true'
       ) {
         setExtensionDetected(true);
       }
@@ -112,13 +112,13 @@ const ExtensionPage: React.FC = () => {
     const handleExtensionLoaded = () => {
       setExtensionDetected(true);
     };
-    window.addEventListener('movix-extension-loaded', handleExtensionLoaded);
+    window.addEventListener('LKS TV-extension-loaded', handleExtensionLoaded);
     
     // Re-check périodique au cas où
     const interval = setInterval(checkExtension, 1000);
     
     return () => {
-      window.removeEventListener('movix-extension-loaded', handleExtensionLoaded);
+      window.removeEventListener('LKS TV-extension-loaded', handleExtensionLoaded);
       clearInterval(interval);
     };
   }, []);
@@ -447,7 +447,7 @@ const ExtensionPage: React.FC = () => {
                 {t('extension.githubNotice')}
               </p>
               <a
-                href={MOVIX_OPEN_SOURCE_GITHUB_URL}
+                href={LKSTV_OPEN_SOURCE_GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-6 sm:px-8 text-sm sm:text-base font-semibold text-white transition-all duration-200 hover:border-white/40 hover:bg-white/10 active:scale-95"
@@ -538,7 +538,7 @@ const ExtensionPage: React.FC = () => {
               <p className="text-sm text-white/55 text-center max-w-xl">
                 {t('extension.githubNotice')}
               </p>
-              <a href={MOVIX_OPEN_SOURCE_GITHUB_URL} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+              <a href={LKSTV_OPEN_SOURCE_GITHUB_URL} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                 <Button variant="ghost" className="border border-white/20 hover:border-white/40 text-white h-11 px-5 gap-2 w-full sm:w-auto">
                   <Github className="w-4 h-4 flex-shrink-0" />
                   {t('extension.viewOpenSourceGithub')}

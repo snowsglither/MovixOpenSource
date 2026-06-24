@@ -1,0 +1,42 @@
+services:
+  mysql:
+    image: mariadb:10.11
+    container_name: lkstv_mysql
+    restart: unless-stopped
+    environment:
+      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "yes"
+      MARIADB_DATABASE: movix
+      MARIADB_CHARACTER_SET: utf8mb4
+      MARIADB_COLLATE: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - lkstv_mysql_data:/var/lib/mysql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-large-prefix=ON
+      --innodb-file-format=Barracuda
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    container_name: lkstv_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - lkstv_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  lkstv_mysql_data:
+  lkstv_redis_data:

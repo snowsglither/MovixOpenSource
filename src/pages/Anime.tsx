@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import HeroSlider from '../components/HeroSlider';
@@ -19,7 +19,7 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const DATA_CACHE_TTL_MS = 15 * 60 * 1000;
 const MATURE_ANIME_AGE_THRESHOLD = 17;
 const CONTENT_RATING_REGION_PRIORITY = ['FR', 'US', 'JP', 'GB', 'CA'] as const;
-const CONTENT_RATING_CACHE_PREFIX = 'movix_anime_content_rating_';
+const CONTENT_RATING_CACHE_PREFIX = 'LKSTV_anime_content_rating_';
 const CONTENT_RATING_CONCURRENCY = 12;
 
 interface AnimeShow {
@@ -258,9 +258,9 @@ const Anime: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const dataCacheKey = `movix_anime_data_v2_${tmdbLanguage}`;
+  const dataCacheKey = `LKSTV_anime_data_v2_${tmdbLanguage}`;
   const dataCacheTsKey = `${dataCacheKey}_timestamp`;
-  const genreImageCacheKey = `movix_anime_genre_images_v2_${tmdbLanguage}`;
+  const genreImageCacheKey = `LKSTV_anime_genre_images_v2_${tmdbLanguage}`;
   const genreImageCacheTsKey = `${genreImageCacheKey}_timestamp`;
 
   useWrappedTracker({
@@ -488,7 +488,7 @@ const Anime: React.FC = () => {
   }, [genreImageCacheKey, genreImageCacheTsKey, tmdbLanguage]);
 
   useEffect(() => {
-    document.title = `${t('animePage.title')} - Movix`;
+    document.title = `${t('animePage.title')} - LKS TV`;
   }, [i18n.language, t]);
 
   if (error) {
@@ -573,7 +573,6 @@ const Anime: React.FC = () => {
           </div>
         ))}
 
-        <TelegramPromotion />
       </div>
     </div>
   );

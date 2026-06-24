@@ -1,4 +1,4 @@
-export type AuthMethod = 'discord' | 'google' | 'bip39';
+﻿export type AuthMethod = 'discord' | 'google' | 'bip39';
 export type ResolvedUserType = 'oauth' | 'bip39';
 
 interface StoredUserProfile extends Record<string, unknown> {
@@ -67,8 +67,8 @@ interface DecodedJwtPayload {
 }
 
 const DEFAULT_AVATAR = 'https://as2.ftcdn.net/v2/jpg/05/89/93/27/1000_F_589932782_vQAEAZhHnq1QCGu5ikwrYaQD0Mmurm0N.webp';
-const PENDING_AUTH_ACTION_KEY = 'movix_pending_auth_action';
-const PENDING_AUTH_ACTION_COOKIE = 'movix_pending_auth_action';
+const PENDING_AUTH_ACTION_KEY = 'LKSTV_pending_auth_action';
+const PENDING_AUTH_ACTION_COOKIE = 'LKSTV_pending_auth_action';
 const PENDING_AUTH_ACTION_TTL_MS = 30 * 60 * 1000;
 const PENDING_AUTH_ACTION_TTL_SECONDS = Math.floor(PENDING_AUTH_ACTION_TTL_MS / 1000);
 // Note : selected_profile_id n'est PAS dans cette liste volontairement. Sur un

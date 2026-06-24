@@ -696,11 +696,8 @@ router.get('/imdb/:type/:id', async (req, res) => {
       } catch (updateError) {
         console.error(`Erreur lors de la mise a jour du cache ${type} ${id}:`, updateError);
         if (!dataReturned && !res.headersSent) {
-          if (updateError.message && updateError.message.includes('404')) {
-            res.status(200).json({ message: 'Contenu non disponible', french_stream_id: id });
-          } else {
-            res.status(500).json({ error: 'Erreur lors de la mise a jour du cache', details: updateError.message });
-          }
+          // FrenchStream down, scraping échoué, ou 404 → réponse gracieuse (pas de 500)
+          res.status(200).json({ message: 'Contenu non disponible', french_stream_id: id });
         }
       }
     };

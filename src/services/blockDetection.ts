@@ -1,4 +1,4 @@
-import type { AxiosInstance } from 'axios';
+﻿import type { AxiosInstance } from 'axios';
 
 /**
  * Détecte en arrière-plan si le domaine principal est bloqué (FAI ban,
@@ -61,7 +61,7 @@ function triggerRedirect(error: unknown) {
   const e = error as Record<string, unknown> | null | undefined;
   const errMessage = (e?.message as string) || (e?.code as string) || 'Network error';
   sw.postMessage({
-    type: 'MOVIX_FORCE_REDIRECT',
+    type: 'LKSTV_FORCE_REDIRECT',
     error: String(errMessage).slice(0, 100),
   });
 }
@@ -73,7 +73,7 @@ function ensureMessageListener() {
     const data = e.data;
     if (
       data &&
-      data.type === 'MOVIX_REDIRECT_TO' &&
+      data.type === 'LKSTV_REDIRECT_TO' &&
       typeof data.url === 'string' &&
       /^https:\/\//i.test(data.url) &&
       !redirecting

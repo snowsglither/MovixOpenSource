@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Wraps a dynamic-import loader to recover from chunk-load failures
  * after a deploy (CDN evicted an old chunk before the client refreshed).
  *
@@ -15,7 +15,7 @@
  *   loader: () => lazyWithRetry(() => import('../pages/MyPage'))
  */
 
-const RELOAD_KEY = '__movix_chunk_reload_at';
+const RELOAD_KEY = '__LKSTV_chunk_reload_at';
 const RELOAD_COOLDOWN_MS = 60_000;
 
 const isChunkLoadError = (err: unknown): boolean => {

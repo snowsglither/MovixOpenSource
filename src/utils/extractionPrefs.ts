@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Préférences utilisateur contrôlant quelles extractions l'extension /
  * userscript / app ont le droit d'effectuer. Source de vérité : localStorage.
  *
@@ -38,7 +38,7 @@ export interface ExtractionPrefs {
 }
 
 const STORAGE_KEY = 'settings_extraction_prefs';
-const CHANGE_EVENT = 'movix-extraction-prefs-changed';
+const CHANGE_EVENT = 'LKS TV-extraction-prefs-changed';
 
 function buildDefaults(): ExtractionPrefs {
   const m3u8 = {} as Record<M3u8ExtractorKey, boolean>;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, Fragment } from 'react';
+﻿import { useEffect, useMemo, useState, Fragment } from 'react';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -92,7 +92,7 @@ const HelpHubPage: React.FC = () => {
   const currentLang = i18n.language;
 
   useEffect(() => {
-    document.title = `${t('help.hub.title')} — Movix`;
+    document.title = `${t('help.hub.title')} — LKS TV`;
   }, [t]);
 
   const results: Result[] = useMemo(() => {
@@ -250,7 +250,7 @@ const HelpHubPage: React.FC = () => {
             {t('help.hub.bottomCta')}
           </p>
           <a
-            href={import.meta.env.VITE_SUPPORT_TELEGRAM_URL || 'https://t.me/movix_site'}
+            href={import.meta.env.VITE_SUPPORT_TELEGRAM_URL || 'https://t.me/LKSTV_site'}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold text-sm transition-colors"

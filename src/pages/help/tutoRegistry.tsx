@@ -1,4 +1,4 @@
-import { ReactElement } from 'react';
+﻿import { ReactElement } from 'react';
 import {
   AlertCircle,
   ShieldAlert,
@@ -369,7 +369,7 @@ export const TUTO_REGISTRY: TutoMeta[] = [
       'help.premid.step2',
       'help.premid.step3',
       'help.premid.step4',
-      'help.premid.movixPresenceBody',
+      'help.premid.LKSTVPresenceBody',
       'help.premid.limitsBody',
     ],
   },

@@ -1,4 +1,4 @@
-// src/utils/lastPlayerPref.ts
+﻿// src/utils/lastPlayerPref.ts
 //
 // Persistance de la préférence "se souvenir du dernier lecteur choisi".
 // Quand activée, le dernier `TopLevelSourceId` sélectionné manuellement par
@@ -10,11 +10,11 @@
 import { TOP_LEVEL_SOURCE_IDS, type TopLevelSourceId } from '../types/sourcePriority';
 
 // Préfixe `player` → match la règle de sync serveur (`SYNCABLE_PREFIXES` dans
-// API/Mainapi/utils/syncPolicy.js). Les anciens noms `movix_remember_last_player`
-// / `movix_last_player` étaient silencieusement filtrés par le client.
+// API/Mainapi/utils/syncPolicy.js). Les anciens noms `LKSTV_remember_last_player`
+// / `LKSTV_last_player` étaient silencieusement filtrés par le client.
 const TOGGLE_KEY = 'playerRememberLast';
 const VALUE_KEY = 'playerLastId';
-const CHANGE_EVENT = 'movix-last-player-changed';
+const CHANGE_EVENT = 'LKS TV-last-player-changed';
 
 const VALID_IDS = new Set<string>(TOP_LEVEL_SOURCE_IDS);
 

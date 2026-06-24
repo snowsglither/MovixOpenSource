@@ -7,6 +7,7 @@
 const express = require("express");
 const http = require("http");
 const https = require("https");
+const dns = require("dns");
 const compression = require("compression");
 
 // Middleware modules
@@ -129,7 +130,30 @@ const axiosAnimeSama = axios.create({
   decompress: true,
 });
 
-const FSTREAM_BASE_URL_VAL = "https://french-stream.one/";
+// === DNS Bypass (anti-censure FAI belge) ===
+// dns.resolve4 interroge ces serveurs directement via UDP 53, sans passer
+// par le résolveur OS que Proximus/VOO interceptent pour bloquer les sites.
+dns.setServers(['1.1.1.1', '8.8.8.8', '9.9.9.9']);
+
+function antiCensorLookup(hostname, options, callback) {
+  dns.resolve4(hostname, (err, addresses) => {
+    if (err || !addresses || !addresses.length) {
+      dns.lookup(hostname, options, callback);
+      return;
+    }
+    // Node v22+ HTTP agent passes options.all=true, expecting [{address,family}]
+    if (options && options.all) {
+      callback(null, addresses.map(addr => ({ address: addr, family: 4 })));
+    } else {
+      callback(null, addresses[0], 4);
+    }
+  });
+}
+
+const antiCensorHttpAgent = new http.Agent({ keepAlive: true, lookup: antiCensorLookup });
+const antiCensorHttpsAgent = new https.Agent({ keepAlive: true, lookup: antiCensorLookup });
+
+const FSTREAM_BASE_URL_VAL = (process.env.FSTREAM_BASE_URL || 'https://french-stream.one').replace(/\/$/, '') + '/';
 const axiosFStream = axios.create({
   baseURL: FSTREAM_BASE_URL_VAL,
   timeout: 6000,
@@ -153,8 +177,10 @@ const axiosFStream = axios.create({
     "sec-ch-ua": '"Not(A:Brand";v="8", "Chromium";v="144", "Brave";v="144"',
     "sec-ch-ua-mobile": "?0",
     "sec-ch-ua-platform": '"Windows"',
-    Referer: "https://french-stream.one/",
+    Referer: FSTREAM_BASE_URL_VAL,
   },
+  httpAgent: antiCensorHttpAgent,
+  httpsAgent: antiCensorHttpsAgent,
   decompress: true,
 });
 
@@ -469,10 +495,11 @@ app.use('/api', downloadRouter);
 app.use('/api/fstream', require('./routes/fstream'));
 app.use('/api/wiflix', require('./routes/wiflix'));
 app.use('/api', require('./routes/sync'));
-app.use('/api/profiles', require('./routes/profiles'));
+// LKS TV — auth désactivée (réseau local)
+app.use('/api/auth', (_req, res) => res.status(503).json({ error: 'Auth désactivée sur LKS TV local' }));
+app.use('/api/oauth', (_req, res) => res.status(503).json({ error: 'OAuth désactivé sur LKS TV local' }));
+app.use('/api/profiles', (_req, res) => res.status(503).json({ error: 'Utiliser /api/lkstv/profiles' }));
 app.use('/api/help', require('./routes/helpFeedback'));
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/oauth', oauthRouter);
 app.use('/api/admin/oauth-apps', require('./routes/adminOauthApps'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api', require('./routes/debrid'));
@@ -497,6 +524,11 @@ app.use("/api/purstream", purstreamRouter);
 
 const downloadLinksLeaderboardRouter = require('./routes/downloadLinksLeaderboard');
 app.use('/api/download-links', downloadLinksLeaderboardRouter);
+
+const lkstvDownloadRouter = require('./routes/lkstvDownload');
+app.use('/api/lkstv', lkstvDownloadRouter);
+app.use('/api/lkstv', require('./routes/lkstvProfiles'));
+app.use('/api/lkstv', require('./routes/lkstvHistory'));
 
 // ==========================================================================
 // MySQL pool initialization — pool unique via mysqlPool.js
@@ -547,6 +579,34 @@ const appReady = (async () => {
 
     await ensureOAuthStorage(pool);
     console.log('OAuth tables initialized successfully');
+
+      // LKS TV local tables (sans FK — ordre de création non garanti en bootstrap)
+      await pool.execute(`CREATE TABLE IF NOT EXISTS local_profiles (
+  id VARCHAR(36) NOT NULL, name VARCHAR(100) NOT NULL,
+  avatar_color VARCHAR(50) NOT NULL DEFAULT 'bg-blue-600',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+      await pool.execute(`CREATE TABLE IF NOT EXISTS lkstv_history (
+  id INT AUTO_INCREMENT PRIMARY KEY, profile_id VARCHAR(36) NOT NULL,
+  media_type ENUM('movie','tv') NOT NULL, media_id BIGINT NOT NULL,
+  title VARCHAR(500), poster_path VARCHAR(500),
+  progress FLOAT DEFAULT 0, duration FLOAT DEFAULT 0,
+  season INT DEFAULT NULL, episode INT DEFAULT NULL,
+  watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_profile_media (profile_id, media_type, media_id),
+  KEY idx_profile_watched (profile_id, watched_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+      await pool.execute(`CREATE TABLE IF NOT EXISTS lkstv_watchlist (
+  id INT AUTO_INCREMENT PRIMARY KEY, profile_id VARCHAR(36) NOT NULL,
+  media_type ENUM('movie','tv') NOT NULL, media_id BIGINT NOT NULL,
+  title VARCHAR(500), poster_path VARCHAR(500),
+  added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_profile_wl (profile_id, media_type, media_id),
+  KEY idx_profile_added (profile_id, added_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+      console.log('LKS TV tables (local_profiles, lkstv_history, lkstv_watchlist) initialized');
 
       // OAuth client config (table oauth_clients + stats + grants VIP).
       // ensureTables et migrateLegacyJsonIfNeeded sont protégés par le lock

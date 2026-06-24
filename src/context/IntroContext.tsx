@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 
 interface IntroContextProps {
   showIntro: boolean;
@@ -15,8 +15,8 @@ export const IntroProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [introCompleted, setIntroCompleted] = useState(true);
 
   useEffect(() => {
-    const introEnabled = localStorage.getItem('movix_intro_enabled') === 'true';
-    const hasSeenIntro = localStorage.getItem('movix_intro_seen') === 'true';
+    const introEnabled = localStorage.getItem('LKSTV_intro_enabled') === 'true';
+    const hasSeenIntro = localStorage.getItem('LKSTV_intro_seen') === 'true';
 
     if (introEnabled && !hasSeenIntro) {
       setShowIntro(true);
@@ -28,7 +28,7 @@ export const IntroProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const handleIntroReset = () => {
       // Quand on active l'intro dans les settings, reset le "seen" pour la prochaine visite
-      localStorage.removeItem('movix_intro_seen');
+      localStorage.removeItem('LKSTV_intro_seen');
     };
     window.addEventListener('intro_settings_changed', handleIntroReset);
     return () => window.removeEventListener('intro_settings_changed', handleIntroReset);
@@ -37,13 +37,13 @@ export const IntroProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const completeIntro = useCallback(() => {
     setShowIntro(false);
     setIntroCompleted(true);
-    localStorage.setItem('movix_intro_seen', 'true');
+    localStorage.setItem('LKSTV_intro_seen', 'true');
   }, []);
 
   const skipIntro = useCallback(() => {
     setShowIntro(false);
     setIntroCompleted(true);
-    localStorage.setItem('movix_intro_seen', 'true');
+    localStorage.setItem('LKSTV_intro_seen', 'true');
   }, []);
 
   const value = useMemo(

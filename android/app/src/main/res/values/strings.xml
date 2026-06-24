@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LKS TV</string>
+    <string name="title_activity_main">LKS TV</string>
+    <string name="package_name">com.lkstv.app</string>
+    <string name="custom_url_scheme">com.lkstv.app</string>
+</resources>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock, Trash2, Plus, Film } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -37,7 +37,7 @@ const AdminPanel: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === 'movix' && password === 'movix') {
+    if (username === 'LKS TV' && password === 'LKS TV') {
       setIsLoggedIn(true);
       setError('');
     } else {

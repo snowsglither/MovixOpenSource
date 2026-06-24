@@ -56,6 +56,7 @@ import {
   readSharedListFavorites,
   type SharedListFavorite,
 } from '../utils/sharedListFavorites';
+import { profileStorageKey, getActiveProfile } from '../services/lkstvProfileService';
 
 // Get API URL from environment variable
 const API_URL = import.meta.env.VITE_MAIN_API;
@@ -1221,7 +1222,7 @@ const Profile: React.FC = () => {
     try {
       const watchedMovies = JSON.parse(localStorage.getItem('watched_movie') || '[]');
       const watchedTv = JSON.parse(localStorage.getItem('watched_tv') || '[]');
-      const continueWatching = JSON.parse(localStorage.getItem('continueWatching') || '{"movies": [], "tv": []}');
+      const continueWatching = JSON.parse(localStorage.getItem(profileStorageKey('continueWatching')) || '{"movies": [], "tv": []}');
 
       let hasUpdates = false;
 
@@ -1234,7 +1235,7 @@ const Profile: React.FC = () => {
           // Skip if already marked as watched
           if (watchedMovies.some((item: any) => item.id === movieId)) continue;
 
-          const progressKey = `progress_${movieId}`;
+          const progressKey = profileStorageKey(`progress_${movieId}`);
           const savedProgress = localStorage.getItem(progressKey);
 
           if (savedProgress) {
@@ -1285,7 +1286,7 @@ const Profile: React.FC = () => {
           if (watchedTv.some((item: any) => item.id === tvShow.id)) continue;
 
           const { season, episode } = tvShow.currentEpisode;
-          const progressKey = `progress_tv_${tvShow.id}_s${season}_e${episode}`;
+          const progressKey = profileStorageKey(`progress_tv_${tvShow.id}_s${season}_e${episode}`);
           const savedProgress = localStorage.getItem(progressKey);
 
           if (savedProgress) {
@@ -1316,10 +1317,12 @@ const Profile: React.FC = () => {
         }
       }
 
-      // NEW: Check ALL TV episode progress keys in localStorage
+      // NEW: Check ALL TV episode progress keys in localStorage (profile-scoped)
+      const _pid = getActiveProfile()?.id || '';
+      const _tvPrefix = _pid ? `${_pid}_progress_tv_` : 'progress_tv_';
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('progress_tv_')) {
+        if (key && key.startsWith(_tvPrefix)) {
           // Parse the key to extract showId, season, and episode
           const match = key.match(/progress_tv_(\d+)_s(\d+)_e(\d+)/);
           if (match) {
@@ -1380,10 +1383,12 @@ const Profile: React.FC = () => {
       // Get all TV shows that have episode tracking
       const tvShowsWithEpisodes = new Set<number>();
 
-      // Scan localStorage for all TV episode progress keys
+      // Scan localStorage for all TV episode progress keys (profile-scoped)
+      const _pid2 = getActiveProfile()?.id || '';
+      const _tvPrefix2 = _pid2 ? `${_pid2}_progress_tv_` : 'progress_tv_';
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('progress_tv_')) {
+        if (key && key.startsWith(_tvPrefix2)) {
           const match = key.match(/progress_tv_(\d+)_s\d+_e\d+/);
           if (match) {
             tvShowsWithEpisodes.add(parseInt(match[1]));

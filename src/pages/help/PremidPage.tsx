@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Gamepad2, AlertTriangle } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
 
 const PREMID_HOME = 'https://premid.app/fr';
-const PREMID_MOVIX_LIBRARY = 'https://premid.app/fr/library/movix';
+const PREMID_LKSTV_LIBRARY = 'https://premid.app/fr/library/LKS TV';
 const PREMID_CHROME = 'https://chromewebstore.google.com/detail/premid/agnpmnnelkhngjfiibjjljipjmlhbecf';
 const PREMID_FIREFOX = 'https://addons.mozilla.org/fr/firefox/addon/premid/';
 
@@ -21,7 +21,7 @@ const PremidPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.premid.title')} — Movix`;
+    document.title = `${t('help.premid.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [
@@ -53,10 +53,10 @@ const PremidPage: React.FC = () => {
     },
     {
       kind: 'text',
-      titleKey: 'help.premid.movixPresenceTitle',
-      bodyKey: 'help.premid.movixPresenceBody',
+      titleKey: 'help.premid.LKSTVPresenceTitle',
+      bodyKey: 'help.premid.LKSTVPresenceBody',
       components: {
-        1: externalLink(PREMID_MOVIX_LIBRARY),
+        1: externalLink(PREMID_LKSTV_LIBRARY),
       },
     },
     {

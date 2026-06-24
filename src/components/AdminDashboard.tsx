@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Clapperboard,
@@ -165,7 +165,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
         </div>
         <div className="mb-2 flex justify-center">
           <ShinyText
-            text={role === 'uploader' ? t('admin.uploaderSpace') : t('admin.movixAdministration')}
+            text={role === 'uploader' ? t('admin.uploaderSpace') : t('admin.LKSTVAdministration')}
             speed={2}
             color="#ffffff"
             shineColor="#fbbf24"

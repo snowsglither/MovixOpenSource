@@ -1,4 +1,4 @@
-
+﻿
 interface ExtensionResponse<T = unknown> {
     source: string;
     messageId: string;
@@ -9,15 +9,15 @@ interface ExtensionResponse<T = unknown> {
 
 export const isExtensionAvailable = (): boolean => {
     const w = window as Window & {
-        hasMovixExtension?: boolean;
-        __MOVIX_EXTENSION_INSTALLED?: boolean;
-        hasMovixUserscript?: boolean;
+        hasLKSTVExtension?: boolean;
+        __LKSTV_EXTENSION_INSTALLED?: boolean;
+        hasLKSTVUserscript?: boolean;
     };
     return (
-        w.hasMovixExtension === true ||
-        w.__MOVIX_EXTENSION_INSTALLED === true ||
-        w.hasMovixUserscript === true ||
-        document.documentElement?.dataset.movixExtension === 'true'
+        w.hasLKSTVExtension === true ||
+        w.__LKSTV_EXTENSION_INSTALLED === true ||
+        w.hasLKSTVUserscript === true ||
+        document.documentElement?.dataset.LKSTVExtension === 'true'
     );
 };
 
@@ -41,7 +41,7 @@ export const fetchFromExtension = <T = unknown>(
             const response = event.data;
 
             // We accept messages from window, must be from extension content script
-            if (event.source !== window || !response || response.source !== "MOVIX_EXTENSION") return;
+            if (event.source !== window || !response || response.source !== "LKSTV_EXTENSION") return;
 
             if (response.messageId === messageId) {
                 window.removeEventListener("message", handler);
@@ -55,7 +55,7 @@ export const fetchFromExtension = <T = unknown>(
 
         window.addEventListener("message", handler);
         window.postMessage({
-            source: "MOVIX_WEB",
+            source: "LKSTV_WEB",
             type: "EXTENSION_REQUEST",
             action,
             payload: enrichedPayload,

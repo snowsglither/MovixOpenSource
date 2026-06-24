@@ -1,9 +1,9 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import { getTmdbLanguage } from '../i18n';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
-const KEYWORD_ID_CACHE_PREFIX = 'movix_tmdb_keyword_id_';
-const MEDIA_KEYWORDS_CACHE_PREFIX = 'movix_tmdb_media_keyword_ids_';
+const KEYWORD_ID_CACHE_PREFIX = 'LKSTV_tmdb_keyword_id_';
+const MEDIA_KEYWORDS_CACHE_PREFIX = 'LKSTV_tmdb_media_keyword_ids_';
 
 export interface TmdbKeyword {
   id: number;

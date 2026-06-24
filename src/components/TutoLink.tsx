@@ -1,4 +1,4 @@
-import { PrefetchLink as Link } from '@/routing/PrefetchLink';
+﻿import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 
 interface TutoLinkProps {
   /** React Router route path (e.g. '/extension', '/app'). */
@@ -9,7 +9,7 @@ interface TutoLinkProps {
 
 /**
  * Inline styled Link used inside tuto body paragraphs to point at another
- * Movix route. Rendered through i18next <Trans> numeric placeholders:
+ * LKS TV route. Rendered through i18next <Trans> numeric placeholders:
  *
  *   "bodyText": "Download on the <1>/app</1> page."
  *

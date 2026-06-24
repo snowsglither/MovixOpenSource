@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import {
@@ -20,7 +20,7 @@ import BlurText from '../components/ui/blur-text';
 import ShinyText from '../components/ui/shiny-text';
 import AnimatedBorderCard from '../components/ui/animated-border-card';
 
-const APK_URL = 'https://github.com/movixcorp/MovixOpenSource/raw/refs/heads/main/app/movix-android.apk';
+const APK_URL = 'https://github.com/LKSTVcorp/LKSTVOpenSource/raw/refs/heads/main/app/LKS TV-android.apk';
 
 const features = [
   {
@@ -53,7 +53,7 @@ const androidSteps = [
   {
     step: 1,
     title: 'Téléchargez le fichier APK',
-    desc: 'Cliquez sur le bouton de téléchargement ci-dessous pour récupérer movix-android.apk.',
+    desc: 'Cliquez sur le bouton de téléchargement ci-dessous pour récupérer LKS TV-android.apk.',
   },
   {
     step: 2,
@@ -67,8 +67,8 @@ const androidSteps = [
   },
   {
     step: 4,
-    title: 'Profitez de Movix',
-    desc: 'L\'icône Movix apparaît sur votre écran d\'accueil, prête à être utilisée.',
+    title: 'Profitez de LKS TV',
+    desc: 'L\'icône LKS TV apparaît sur votre écran d\'accueil, prête à être utilisée.',
   },
 ];
 
@@ -109,7 +109,7 @@ const AppDownloadPage: React.FC = () => {
             </div>
             <h1 className="flex flex-col gap-2 text-4xl md:text-6xl font-black tracking-tight mb-4 pb-4">
               <ShinyText
-                text="Movix dans votre poche"
+                text="LKS TV dans votre poche"
                 speed={3}
                 color="#ffffff"
                 shineColor="#6366f1"
@@ -124,7 +124,7 @@ const AppDownloadPage: React.FC = () => {
               />
             </h1>
             <BlurText
-              text="Téléchargez l'application Movix et profitez de tous vos contenus préférés directement depuis votre smartphone."
+              text="Téléchargez l'application LKS TV et profitez de tous vos contenus préférés directement depuis votre smartphone."
               delay={150}
               className="text-lg text-white/60 max-w-2xl mx-auto justify-center"
             />
@@ -156,7 +156,7 @@ const AppDownloadPage: React.FC = () => {
                 </div>
               </div>
               <p className="text-white/55 text-sm leading-relaxed mb-6">
-                Installez Movix sur votre appareil Android en téléchargeant directement
+                Installez LKS TV sur votre appareil Android en téléchargeant directement
                 le fichier APK officiel. Rapide, léger et sans compte obligatoire.
               </p>
               <div className="flex flex-wrap gap-2 mb-6">
@@ -175,7 +175,7 @@ const AppDownloadPage: React.FC = () => {
               </div>
               <a
                 href={APK_URL}
-                download="movix-android.apk"
+                download="LKS TV-android.apk"
                 className="mt-auto inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-green-600 text-white shadow-lg shadow-green-500/20 hover:bg-green-700 px-6 text-sm sm:text-base font-semibold transition-all duration-200 active:scale-95"
               >
                 <Download className="w-5 h-5 flex-shrink-0" />
@@ -202,7 +202,7 @@ const AppDownloadPage: React.FC = () => {
                 </div>
               </div>
               <p className="text-white/55 text-sm leading-relaxed mb-6">
-                L'application Movix pour iPhone et iPad est actuellement en préparation.
+                L'application LKS TV pour iPhone et iPad est actuellement en préparation.
                 Nous travaillons dur pour vous offrir la meilleure expérience possible
                 sur iOS. Restez à l'écoute !
               </p>
@@ -249,7 +249,7 @@ const AppDownloadPage: React.FC = () => {
               </div>
               <div className="flex-1 text-center md:text-left">
                 <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
-                  L'extension Movix est intégrée dans l'application
+                  L'extension LKS TV est intégrée dans l'application
                 </h3>
                 <p className="text-white/55 text-sm sm:text-base leading-relaxed">
                   Pas besoin d'installer quoi que ce soit en plus : l'extension est
@@ -293,7 +293,7 @@ const AppDownloadPage: React.FC = () => {
             </h2>
             <p className="text-white/50 max-w-2xl mx-auto">
               Une expérience optimisée pour votre appareil mobile, avec toutes les
-              fonctionnalités de Movix à portée de main.
+              fonctionnalités de LKS TV à portée de main.
             </p>
           </div>
 
@@ -336,7 +336,7 @@ const AppDownloadPage: React.FC = () => {
               Comment installer sur Android ?
             </h2>
             <p className="text-white/50 max-w-xl mx-auto">
-              Suivez ces quelques étapes simples pour installer Movix sur votre appareil.
+              Suivez ces quelques étapes simples pour installer LKS TV sur votre appareil.
             </p>
           </div>
 
@@ -367,11 +367,11 @@ const AppDownloadPage: React.FC = () => {
             <div className="mt-8 pt-6 border-t border-white/10">
               <a
                 href={APK_URL}
-                download="movix-android.apk"
+                download="LKS TV-android.apk"
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 px-6 text-sm sm:text-base font-semibold transition-all duration-200 active:scale-95"
               >
                 <Download className="w-5 h-5 flex-shrink-0" />
-                Télécharger movix-android.apk
+                Télécharger LKS TV-android.apk
               </a>
               <p className="mt-3 text-xs text-white/30 text-center">
                 Si votre navigateur bloque le téléchargement, autorisez-le manuellement
@@ -393,7 +393,7 @@ const AppDownloadPage: React.FC = () => {
             className="p-8 backdrop-blur-sm"
           >
             <Smartphone className="w-10 h-10 text-indigo-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-white mb-2">Prêt à installer Movix ?</h3>
+            <h3 className="text-xl font-bold text-white mb-2">Prêt à installer LKS TV ?</h3>
             <p className="text-white/50 text-sm mb-6 max-w-md mx-auto">
               Téléchargez l'application Android dès maintenant et profitez d'une
               expérience optimale sur votre smartphone.
@@ -401,7 +401,7 @@ const AppDownloadPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
                 href={APK_URL}
-                download="movix-android.apk"
+                download="LKS TV-android.apk"
                 className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-green-600 text-white hover:bg-green-700 px-6 text-sm font-semibold transition-all duration-200 active:scale-95"
               >
                 <Download className="w-4 h-4 flex-shrink-0" />

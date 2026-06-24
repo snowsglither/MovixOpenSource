@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import { ArrowLeft, Crown, Sparkles, Heart, Rocket, Globe, Tv, Film, Users, Star } from 'lucide-react';
@@ -27,41 +27,41 @@ const supportedSources = [
   { name: 'Purstream', color: '#d946ef' },
 ];
 
-// Timeline / Histoire de Movix
+// Timeline / Histoire de LKS TV
 const historyItems = [
   {
     icon: <Sparkles className="w-5 h-5" />,
-    titleKey: 'whatIsMovix.observation',
-    descKey: 'whatIsMovix.observationDesc',
+    titleKey: 'whatIsLKS TV.observation',
+    descKey: 'whatIsLKS TV.observationDesc',
     color: '#f59e0b',
   },
   {
     icon: <Rocket className="w-5 h-5" />,
-    titleKey: 'whatIsMovix.theIdea',
-    descKey: 'whatIsMovix.theIdeaDesc',
+    titleKey: 'whatIsLKS TV.theIdea',
+    descKey: 'whatIsLKS TV.theIdeaDesc',
     color: '#3b82f6',
   },
   {
     icon: <Heart className="w-5 h-5" />,
-    titleKey: 'whatIsMovix.passionProject',
-    descKey: 'whatIsMovix.passionProjectDesc',
+    titleKey: 'whatIsLKS TV.passionProject',
+    descKey: 'whatIsLKS TV.passionProjectDesc',
     color: '#ec4899',
   },
   {
     icon: <Users className="w-5 h-5" />,
-    titleKey: 'whatIsMovix.community',
-    descKey: 'whatIsMovix.communityDesc',
+    titleKey: 'whatIsLKS TV.community',
+    descKey: 'whatIsLKS TV.communityDesc',
     color: '#22c55e',
   },
   {
     icon: <Star className="w-5 h-5" />,
-    titleKey: 'whatIsMovix.alwaysFurther',
-    descKey: 'whatIsMovix.alwaysFurtherDesc',
+    titleKey: 'whatIsLKS TV.alwaysFurther',
+    descKey: 'whatIsLKS TV.alwaysFurtherDesc',
     color: '#a855f7',
   },
 ];
 
-const WhatIsMovixPage: React.FC = () => {
+const WhatIsLKSTVPage: React.FC = () => {
   const { t } = useTranslation();
   // Masquer le footer
   useEffect(() => undefined, []);
@@ -87,7 +87,7 @@ const WhatIsMovixPage: React.FC = () => {
         {/* Back Button */}
         <Link to="/" className="inline-flex items-center text-white/50 hover:text-white transition-colors mb-8">
           <ArrowLeft className="w-5 h-5 mr-2" />
-          {t('whatIsMovix.backToHome')}
+          {t('whatIsLKS TV.backToHome')}
         </Link>
 
         {/* Hero Section */}
@@ -97,7 +97,7 @@ const WhatIsMovixPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="mb-6 relative"
           >
-            {/* Logo Movix - tilted left like the mammoth image */}
+            {/* Logo LKS TV - tilted left like the mammoth image */}
             <motion.div
               initial={{ opacity: 0, rotate: -15, scale: 0.7 }}
               animate={{ opacity: 1, rotate: -8, scale: 1 }}
@@ -105,8 +105,8 @@ const WhatIsMovixPage: React.FC = () => {
               className="flex justify-center mb-8"
             >
               <img
-                src="/movix.png"
-                alt="Movix Logo"
+                src="/LKS TV.png"
+                alt="LKS TV Logo"
                 className="w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 drop-shadow-[0_0_40px_rgba(220,38,38,0.35)]"
                 style={{ transform: 'rotate(-8deg)' }}
               />
@@ -114,9 +114,9 @@ const WhatIsMovixPage: React.FC = () => {
 
             <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4 pb-4">
               <span className="block py-2 leading-tight">
-                <ShinyText text={t('whatIsMovix.title').split('Movix')[0]} speed={3} color="#ffffff" shineColor="#dc2626" className="inline" />
-                <ShinyText text="Movix" speed={2} color="#dc2626" shineColor="#ffffff" className="inline" />
-                <ShinyText text={t('whatIsMovix.title').includes('?') ? ' ?' : ''} speed={3} color="#ffffff" shineColor="#dc2626" className="inline" />
+                <ShinyText text={t('whatIsLKS TV.title').split('LKS TV')[0]} speed={3} color="#ffffff" shineColor="#dc2626" className="inline" />
+                <ShinyText text="LKS TV" speed={2} color="#dc2626" shineColor="#ffffff" className="inline" />
+                <ShinyText text={t('whatIsLKS TV.title').includes('?') ? ' ?' : ''} speed={3} color="#ffffff" shineColor="#dc2626" className="inline" />
               </span>
             </h1>
           </motion.div>
@@ -129,7 +129,7 @@ const WhatIsMovixPage: React.FC = () => {
             className="max-w-3xl mx-auto mb-8"
           >
             <p className="text-lg sm:text-xl text-white/70 leading-relaxed">
-              {t('whatIsMovix.accessTo')}
+              {t('whatIsLKS TV.accessTo')}
             </p>
           </motion.div>
 
@@ -166,7 +166,7 @@ const WhatIsMovixPage: React.FC = () => {
             className="mb-10"
           >
             <p className="text-xl sm:text-2xl text-white/50 font-light">
-              {t('whatIsMovix.inOnePlace')} <span className="text-white font-semibold">{t('whatIsMovix.forFree')}</span>.
+              {t('whatIsLKS TV.inOnePlace')} <span className="text-white font-semibold">{t('whatIsLKS TV.forFree')}</span>.
             </p>
           </motion.div>
 
@@ -179,7 +179,7 @@ const WhatIsMovixPage: React.FC = () => {
             <Link to="/">
               <Button className="bg-red-600 hover:bg-red-700 text-white px-10 h-13 text-lg font-semibold gap-2 rounded-full shadow-lg shadow-red-600/25">
                 <Tv className="w-5 h-5" />
-                {t('whatIsMovix.startWatching')}
+                {t('whatIsLKS TV.startWatching')}
               </Button>
             </Link>
           </motion.div>
@@ -202,22 +202,22 @@ const WhatIsMovixPage: React.FC = () => {
                 <div className="flex items-center justify-center gap-3">
                   <Crown className="w-6 h-6 text-yellow-500 group-hover:scale-110 transition-transform" />
                   <div>
-                    <p className="text-white/50 text-sm">{t('whatIsMovix.wantMore')}</p>
+                    <p className="text-white/50 text-sm">{t('whatIsLKS TV.wantMore')}</p>
                     <p className="text-yellow-400 font-semibold text-base sm:text-lg group-hover:text-yellow-300 transition-colors">
-                      {t('whatIsMovix.discoverVip')}
+                      {t('whatIsLKS TV.discoverVip')}
                     </p>
                   </div>
                   <Crown className="w-6 h-6 text-yellow-500 group-hover:scale-110 transition-transform" />
                 </div>
                 <p className="text-white/40 text-xs sm:text-sm text-center max-w-md leading-relaxed">
-                  {t('whatIsMovix.vipKeepsSiteAlive')}
+                  {t('whatIsLKS TV.vipKeepsSiteAlive')}
                 </p>
               </div>
             </AnimatedBorderCard>
           </Link>
         </motion.div>
 
-        {/* Histoire de Movix */}
+        {/* Histoire de LKS TV */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -226,9 +226,9 @@ const WhatIsMovixPage: React.FC = () => {
           className="max-w-4xl mx-auto mb-20"
         >
           <motion.div variants={itemVariants} className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t('whatIsMovix.historyTitle')}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t('whatIsLKS TV.historyTitle')}</h2>
             <p className="text-white/50 max-w-2xl mx-auto">
-              {t('whatIsMovix.historyDesc')}
+              {t('whatIsLKS TV.historyDesc')}
             </p>
           </motion.div>
 
@@ -290,20 +290,20 @@ const WhatIsMovixPage: React.FC = () => {
           className="max-w-5xl mx-auto mb-20"
         >
           <motion.div variants={itemVariants} className="text-center mb-10">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t('whatIsMovix.allYouNeed')}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">{t('whatIsLKS TV.allYouNeed')}</h2>
             <p className="text-white/50 max-w-xl mx-auto">
-              {t('whatIsMovix.allYouNeedDesc')}
+              {t('whatIsLKS TV.allYouNeedDesc')}
             </p>
           </motion.div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { icon: <Globe className="w-6 h-6" />, title: t('whatIsMovix.multiSources'), desc: t('whatIsMovix.multiSourcesDesc'), color: '#3b82f6' },
-              { icon: <Film className="w-6 h-6" />, title: t('whatIsMovix.hugeCatalog'), desc: t('whatIsMovix.hugeCatalogDesc'), color: '#f97316' },
-              { icon: <Tv className="w-6 h-6" />, title: t('whatIsMovix.directTV'), desc: t('whatIsMovix.directTVDesc'), color: '#14b8a6' },
-              { icon: <Users className="w-6 h-6" />, title: t('whatIsMovix.watchPartyFeature'), desc: t('whatIsMovix.watchPartyFeatureDesc'), color: '#ec4899' },
-              { icon: <Star className="w-6 h-6" />, title: t('whatIsMovix.sharedLists'), desc: t('whatIsMovix.sharedListsDesc'), color: '#f59e0b' },
-              { icon: <Sparkles className="w-6 h-6" />, title: t('whatIsMovix.modernUI'), desc: t('whatIsMovix.modernUIDesc'), color: '#a855f7' },
+              { icon: <Globe className="w-6 h-6" />, title: t('whatIsLKS TV.multiSources'), desc: t('whatIsLKS TV.multiSourcesDesc'), color: '#3b82f6' },
+              { icon: <Film className="w-6 h-6" />, title: t('whatIsLKS TV.hugeCatalog'), desc: t('whatIsLKS TV.hugeCatalogDesc'), color: '#f97316' },
+              { icon: <Tv className="w-6 h-6" />, title: t('whatIsLKS TV.directTV'), desc: t('whatIsLKS TV.directTVDesc'), color: '#14b8a6' },
+              { icon: <Users className="w-6 h-6" />, title: t('whatIsLKS TV.watchPartyFeature'), desc: t('whatIsLKS TV.watchPartyFeatureDesc'), color: '#ec4899' },
+              { icon: <Star className="w-6 h-6" />, title: t('whatIsLKS TV.sharedLists'), desc: t('whatIsLKS TV.sharedListsDesc'), color: '#f59e0b' },
+              { icon: <Sparkles className="w-6 h-6" />, title: t('whatIsLKS TV.modernUI'), desc: t('whatIsLKS TV.modernUIDesc'), color: '#a855f7' },
             ].map((feature) => (
               <motion.div key={feature.title} variants={itemVariants}>
                 <AnimatedBorderCard
@@ -342,31 +342,31 @@ const WhatIsMovixPage: React.FC = () => {
             className="p-8 backdrop-blur-sm"
           >
             <img
-              src="/movix.png"
-              alt="Movix Logo"
+              src="/LKS TV.png"
+              alt="LKS TV Logo"
               className="w-12 h-12 mx-auto mb-4 drop-shadow-lg"
             />
-            <h3 className="text-xl font-bold text-white mb-2">{t('whatIsMovix.readyToTry')}</h3>
+            <h3 className="text-xl font-bold text-white mb-2">{t('whatIsLKS TV.readyToTry')}</h3>
             <p className="text-white/50 text-sm mb-6 max-w-md mx-auto">
-              {t('whatIsMovix.readyToTryDesc')}
+              {t('whatIsLKS TV.readyToTryDesc')}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link to="/">
                 <Button className="bg-red-600 hover:bg-red-700 text-white px-6 h-11 gap-2">
                   <Tv className="w-4 h-4" />
-                  {t('whatIsMovix.exploreMovix')}
+                  {t('whatIsLKS TV.exploreLKS TV')}
                 </Button>
               </Link>
               <Link to="/vip">
                 <Button variant="secondary" className="px-6 h-11 gap-2 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10">
                   <Crown className="w-4 h-4" />
-                  {t('whatIsMovix.becomeVip')}
+                  {t('whatIsLKS TV.becomeVip')}
                 </Button>
               </Link>
               <Link to="/">
                 <Button variant="ghost" className="border border-white/20 hover:border-white/40 text-white h-11 px-5 gap-2">
                   <ArrowLeft className="w-4 h-4" />
-                  {t('whatIsMovix.returnBtn')}
+                  {t('whatIsLKS TV.returnBtn')}
                 </Button>
               </Link>
             </div>
@@ -384,4 +384,4 @@ function hexToRgb(hex: string): string {
   return `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}`;
 }
 
-export default WhatIsMovixPage;
+export default WhatIsLKSTVPage;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom'; // Added useNavigate
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -19,11 +19,13 @@ import { useWrappedTracker } from '../../hooks/useWrappedTracker';
 import { isUserVip, getVipHeaders } from '../../utils/authUtils';
 import { isExtensionAvailable } from '../../utils/extensionProxy';
 import { RIVESTREAM_PROXIES } from '../../config/rivestreamProxy';
-import { buildProxyUrl } from '../../config/runtime';
+import { DownloadButton } from '../../components/DownloadButton';
+import { buildProxyUrl, PROXIES_EMBED_API } from '../../config/runtime';
 import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { getClassificationLabel } from '../../utils/certificationUtils';
 import { getCoflixPreferredUrl } from '../../utils/coflix';
+import { profileStorageKey } from '../../services/lkstvProfileService';
 
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
@@ -300,18 +302,15 @@ const checkCustomTVLink = async (showId: string, seasonNumber: number, episodeNu
 };
 
 
-// Check Frembed Availability for Episodes
+// Check Frembed Availability for Episodes — via backend proxy pour éviter le CORS
 const checkFrembedAvailability = async (showId: string, seasonNumber: number, episodeNumber: number): Promise<boolean> => {
   try {
-    const checkUrl = `https://frembed.click/api/public/v1/tv/${showId}?sa=${seasonNumber}&epi=${episodeNumber}`;
-    const response = await axios.get(checkUrl, { timeout: 1000 });
-
-    // Check status and if result has items
+    const response = await axios.get(`${MAIN_API}/api/frembed/check/tv/${showId}`, {
+      params: { sa: seasonNumber, epi: episodeNumber },
+      timeout: 5000,
+    });
     return response.data?.status === 200 && response.data?.result?.totalItems > 0;
-
-  } catch (error: any) {
-    // console.error('Frembed Check Error:', error.message);
-    // If the check endpoint fails (e.g., 404), assume unavailable
+  } catch {
     return false;
   }
 };
@@ -422,12 +421,15 @@ const checkSibnetAvailability = async (videoId: string): Promise<string | null> 
   if (!videoId) return null;
 
   try {
-    const response = await axios.get(`https://colossal-latrina-movixfrembedapi-acb05587.koyeb.app/api/extract-sibnet?url=https:%2F%2Fvideo.sibnet.ru%2Fshell.php%3Fvideoid%3D${videoId}`);
+    const sibnetUrl = `https://video.sibnet.ru/shell.php?videoid=${videoId}`;
+    const response = await axios.get(`${PROXIES_EMBED_API}/api/extract-sibnet?url=${encodeURIComponent(sibnetUrl)}`);
 
-    if (response.data && response.data.url) {
-      // Replace dv98 with cvs123-1 as requested
-      const modifiedUrl = response.data.url.replace('dv98.sibnet.ru', 'cvs123-1.sibnet.ru');
-      return modifiedUrl;
+    if (response.data) {
+      const rawUrl = response.data.sourceUrl || response.data.url;
+      if (rawUrl) {
+        const modifiedUrl = rawUrl.replace('dv98.sibnet.ru', 'cvs123-1.sibnet.ru');
+        return modifiedUrl;
+      }
     }
   } catch (error) {
     console.error('Error extracting sibnet URL:', error);
@@ -775,7 +777,7 @@ const WatchTv: React.FC = () => {
   // Ajout de l'état pour savoir si l'utilisateur a cliqué sur la pub
   const [hasClickedAd, setHasClickedAd] = useState(false);
 
-  // Movix Wrapped 2026 - Track TV viewing time
+  // LKS TV Wrapped 2026 - Track TV viewing time
   useWrappedTracker({
     mode: 'viewing',
     viewingData: id ? {
@@ -1243,7 +1245,8 @@ const WatchTv: React.FC = () => {
 
         // Add TV show episode to continueWatching (if history is enabled)
         if (localStorage.getItem('settings_disable_history') !== 'true') {
-          const continueWatching = JSON.parse(localStorage.getItem('continueWatching') || '{"movies": [], "tv": []}');
+          const cwKey = profileStorageKey('continueWatching');
+          const continueWatching = JSON.parse(localStorage.getItem(cwKey) || '{"movies": [], "tv": []}');
 
           // Ensure structure exists
           if (!continueWatching.movies) continueWatching.movies = [];
@@ -1278,7 +1281,7 @@ const WatchTv: React.FC = () => {
 
           // Keep only last 20 TV shows
           // continueWatching.tv = continueWatching.tv.slice(0, 20); // Removed limit
-          localStorage.setItem('continueWatching', JSON.stringify(continueWatching));
+          localStorage.setItem(cwKey, JSON.stringify(continueWatching));
         }
 
         // Get seasons information for episode navigation
@@ -4173,6 +4176,24 @@ const WatchTv: React.FC = () => {
         data-premid-source-label={embedType || selectedSource || undefined}
         data-premid-source-detail={preMidSourceDetail}
       />
+
+      {/* Bouton téléchargement hors-ligne — overlay fixe */}
+      {(sibnetUrl || mp4Sources.length > 0) && showTitle && (
+        <div className="fixed bottom-6 right-4 z-[9998]">
+          <DownloadButton
+            compact
+            request={{
+              type: 'tv',
+              tmdbId: Number(tmdbid),
+              title: showTitle,
+              subtitle: `S${seasonNumber} · E${episodeNumber}${episodeTitle ? ' · ' + episodeTitle : ''}`,
+              thumbnail: showPosterPath ? `https://image.tmdb.org/t/p/w185${showPosterPath}` : undefined,
+              sourceUrl: sibnetUrl ?? mp4Sources[0]?.url ?? '',
+            }}
+          />
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex flex-col items-center justify-center h-full bg-black">
           <div className="loading-container">

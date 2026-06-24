@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+﻿import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle, memo, useMemo } from 'react';
 import type HlsType from 'hls.js';
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings, Rewind, FastForward, Volume1, ChevronRight, PictureInPicture, Users, Loader2, Repeat, Cast, Airplay, Info, X, Copy, Check, Lock } from 'lucide-react';
@@ -57,6 +57,7 @@ import {
 } from '../utils/sourcePriorityPrefs';
 import { detectHoster } from '../utils/hosterRegistry';
 import { sortHostersByPriority } from '../utils/sourceAutoSelect';
+import { getActiveProfile } from '../services/lkstvProfileService';
 import type {
   HosterId, TopLevelSourceId, LanguageId, PriorityCategory,
 } from '../types/sourcePriority';
@@ -158,7 +159,7 @@ const dispatchDnsEmbedFallback = (
   return false;
 };
 
-const SOURCE_STREAM_QUALITY_CACHE_EVENT = 'movix:source-stream-quality-cache-updated';
+const SOURCE_STREAM_QUALITY_CACHE_EVENT = 'LKS TV:source-stream-quality-cache-updated';
 const sourceStreamQualityCache = new Map<string, string>();
 const sourceStreamBitrateEstimateCache = new Map<string, number>();
 
@@ -1272,7 +1273,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
 
   // Setup cinep DNR headers for PurStream sources (non-VIP extension users)
   useEffect(() => {
-    if (purstreamSources && purstreamSources.length > 0 && window.movixSetupHeaders) {
+    if (purstreamSources && purstreamSources.length > 0 && window.LKSTVSetupHeaders) {
       // Only need one call per unique hostname
       const seen = new Set<string>();
       for (const s of purstreamSources) {
@@ -1281,7 +1282,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
           const host = new URL(s.url).hostname;
           if (seen.has(host)) continue;
           seen.add(host);
-          window.movixSetupHeaders!('cinep', s.url).catch(() => {});
+          window.LKSTVSetupHeaders!('cinep', s.url).catch(() => {});
         } catch { /* ignore invalid urls */ }
       }
     }
@@ -1407,7 +1408,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
   const [isAirPlayLoading, setIsAirPlayLoading] = useState(false);
   const castButtonRef = useRef<HTMLElement | null>(null);
   const lastLoadedCastSrcRef = useRef<string | null>(null);
-  // Native Android cast bridge (injected by the Movix Android app WebView).
+  // Native Android cast bridge (injected by the LKS TV Android app WebView).
   // When present, clicking cast routes through the Google Cast SDK on-device
   // instead of the web cast_sender.js SDK (which isn't available inside WebView).
   const [nativeCastBridge, setNativeCastBridge] = useState<any>(null);
@@ -2025,7 +2026,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
       }
     }
 
-    // Add custom sources (Movix players)
+    // Add custom sources (LKS TV players)
     if (customSources && customSources.length > 0) {
       customSources.forEach((source, index) => {
         const srcLower = source.toLowerCase();
@@ -2033,7 +2034,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
         embedSources.push({
           type: 'custom',
           id: `custom_${index}`,
-          label: isSeek ? t('watch.seekStreamingPlayer', { n: index + 1 }) : t('watch.movixPlayer', { n: index + 1 }),
+          label: isSeek ? t('watch.seekStreamingPlayer', { n: index + 1 }) : t('watch.LKSTVPlayer', { n: index + 1 }),
           url: source,
         });
       });
@@ -2166,7 +2167,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
     // Définir les lecteurs VO/VOSTFR à conserver (enlever 6, 4 et 2)
     if (showVostfrMenu) {
       const vostfrSources = [
-        { id: 'peachify', label: 'Peachify', url: '' }, // Peachify (priorité, FR subs + accent Movix)
+        { id: 'peachify', label: 'Peachify', url: '' }, // Peachify (priorité, FR subs + accent LKS TV)
         { id: 'vostfr', label: 'Videasy', url: '' }, // Videasy
         { id: 'vidlink', label: 'Vidlink', url: '' }, // vidlink
         { id: 'vidsrccc', label: 'Vidsrc.io', url: '' }, // vidsrc.io
@@ -2363,8 +2364,8 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
       if (purstreamSources && purstreamSources[index]) {
         targetUrl = purstreamSources[index].url || '';
         // Setup cinep headers via extension for non-VIP users (raw URLs)
-        if (targetUrl && window.movixSetupHeaders) {
-          window.movixSetupHeaders('cinep', targetUrl).catch(() => {});
+        if (targetUrl && window.LKSTVSetupHeaders) {
+          window.LKSTVSetupHeaders('cinep', targetUrl).catch(() => {});
         }
       }
     } else if (sourceType === 'vox') {
@@ -3595,7 +3596,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
           return;
         }
 
-        const res = await axios.get(osUrl, { headers: { 'User-Agent': 'Movix/1.0' } });
+        const res = await axios.get(osUrl, { headers: { 'User-Agent': 'LKS TV/1.0' } });
         if (cancelled) return;
 
         if (Array.isArray(res.data)) {
@@ -3667,7 +3668,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
 
       // OpenSubtitles requires a User-Agent header; set a simple one
       console.log(`Fetching OpenSubtitles from: ${osUrl}`);
-      const res = await axios.get(osUrl, { headers: { 'User-Agent': 'Movix/1.0' } });
+      const res = await axios.get(osUrl, { headers: { 'User-Agent': 'LKS TV/1.0' } });
       if (Array.isArray(res.data)) {
         console.log(`Found ${res.data.length} subtitle results for ${hasTvShowId ? 'TV show' : 'movie'}`);
         setExternalSubs(res.data);
@@ -3712,7 +3713,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
           // Download and extract the .gz file locally using PAKO
           const response = await fetch(downloadLink, {
             headers: {
-              'User-Agent': 'Movix/1.0'
+              'User-Agent': 'LKS TV/1.0'
             }
           });
 
@@ -5010,7 +5011,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
 
         await nativeCastBridge.loadMedia(
           finalUrl,
-          title || tvShow?.name || 'Movix',
+          title || tvShow?.name || 'LKS TV',
           posterUrl,
           videoRef.current?.currentTime || 0,
         );
@@ -5414,13 +5415,13 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
     };
   }, [loadCurrentMediaOnCastSession, castSdkReady]);
 
-  // Detect the Movix Android app WebView cast bridge.
-  // When the React Native shell injects window.MovixAndroidCast, we route
+  // Detect the LKS TV Android app WebView cast bridge.
+  // When the React Native shell injects window.LKSTVAndroidCast, we route
   // casts through the on-device Google Cast SDK instead of the web SDK
   // (chrome.cast is not available inside Android WebView).
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const bridge = (window as any).MovixAndroidCast;
+    const bridge = (window as any).LKSTVAndroidCast;
     if (!bridge || typeof bridge.isSupported !== 'function') return;
 
     let cancelled = false;
@@ -5667,12 +5668,10 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
   };
 
   const getProgressKey = useCallback(() => {
-    if (movieId) {
-      return `progress_${movieId}`;
-    }
-    if (tvShowId && seasonNumber && episodeNumber) {
-      return `progress_tv_${tvShowId}_s${seasonNumber}_e${episodeNumber}`;
-    }
+    const pid = getActiveProfile()?.id || '';
+    const prefix = pid ? `${pid}_` : '';
+    if (movieId) return `${prefix}progress_${movieId}`;
+    if (tvShowId && seasonNumber && episodeNumber) return `${prefix}progress_tv_${tvShowId}_s${seasonNumber}_e${episodeNumber}`;
     return null;
   }, [movieId, tvShowId, seasonNumber, episodeNumber]);
 

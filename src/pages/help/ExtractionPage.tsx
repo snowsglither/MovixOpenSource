@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Filter } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -7,7 +7,7 @@ const ExtractionPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.extraction.title')} — Movix`;
+    document.title = `${t('help.extraction.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

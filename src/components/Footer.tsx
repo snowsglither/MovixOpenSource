@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Zap, Palette, Code2, Flame, Waves, Scale, Shield, Smartphone, Github } from "lucide-react";
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import "./Footer.css";
@@ -23,7 +23,7 @@ const Footer: React.FC = () => {
               {t('footer.disclaimerText')}
             </p>
             <a
-              href="https://github.com/movixcorp/MovixOpenSource"
+              href="https://github.com/LKSTVcorp/LKSTVOpenSource"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-4 inline-flex items-center gap-2 text-sm text-gray-50 font-medium opacity-75 transition-all hover:opacity-100"
@@ -51,7 +51,7 @@ const Footer: React.FC = () => {
                 {t('footer.ourUrls')}
               </a>
               <a
-                href="https://t.me/movix_site"
+                href="https://t.me/LKSTV_site"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-row items-center gap-3 text-gray-50 font-medium opacity-75 transition-all hover:opacity-100"
@@ -73,7 +73,7 @@ const Footer: React.FC = () => {
                   <path d="M12 16v-4"></path>
                   <path d="M12 8h.01"></path>
                 </svg>
-                {t('nav.whatIsMovix')}
+                {t('nav.whatIsLKS TV')}
               </Link>
 
               <Link
@@ -241,11 +241,11 @@ const Footer: React.FC = () => {
         {/* Ligne de séparation */}
         <div className="border-t border-gray-800 pt-6">
           <div className="text-center text-sm text-gray-500">
-            <p>© {new Date().getFullYear()} Movix. {t('footer.allRightsReserved')}</p>
+            <p>© {new Date().getFullYear()} LKS TV. {t('footer.allRightsReserved')}</p>
             <p className="mt-1">
               {t('footer.madeWith')} ❤️ {t('footer.by')}{" "}
               <a
-                href="https://t.me/movix_site"
+                href="https://t.me/LKSTV_site"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-indigo-400 hover:text-indigo-300 transition-colors duration-200"

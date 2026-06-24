@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -278,7 +278,7 @@ const WatchAnime: React.FC = () => {
     localStorage.setItem('continueWatching', JSON.stringify(continueWatching));
   }, [id, season, episode]);
 
-  // Movix Wrapped 2026 - Track anime viewing time
+  // LKS TV Wrapped 2026 - Track anime viewing time
   useWrappedTracker({
     mode: 'viewing',
     viewingData: id ? {
@@ -619,18 +619,13 @@ const WatchAnime: React.FC = () => {
 
         // Check if this is a Vidmoly URL - extract M3U8
         if (playerUrlString.includes('vidmoly.to') || playerUrlString.includes('vidmoly.net')) {
-          // Use the URL as-is if it's already .net, otherwise replace .to with .net
-          const vidmolyNetUrl = playerUrlString.includes('vidmoly.net')
-            ? playerUrlString
-            : playerUrlString.replace('vidmoly.to', 'vidmoly.net');
-
           const vidmolySource = {
             language: streamingLink.language,
             quality: 'Auto',
-            url: vidmolyNetUrl,
+            url: playerUrlString,
             player: 'Vidmoly',
             label: `${streamingLink.language.toUpperCase()} - Vidmoly`,
-            id: `vidmoly-${streamingLink.language}-${vidmolyNetUrl}`
+            id: `vidmoly-${streamingLink.language}-${playerUrlString}`
           };
 
           vidmolySources.push(vidmolySource);
@@ -851,6 +846,10 @@ const WatchAnime: React.FC = () => {
 
     setVideoSources(sortedSources);
     setExtractionProgress('');
+    if (sortedSources.length === 0) {
+      setError(t('watch.noAnimeSource'));
+    }
+    setLoading(false);
 
     // Ne pas changer automatiquement la source sélectionnée si ce n'est pas le chargement initial
     // L'utilisateur doit maintenant sélectionner manuellement une nouvelle source dans la langue choisie

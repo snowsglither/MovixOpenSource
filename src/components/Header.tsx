@@ -1,16 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Snowfall from 'react-snowfall';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
-import { Film, Search, Menu, X, Star, Tv2, Users, Clapperboard, Bell, Tv, Lightbulb, Network, List, Radio, Unlock, ChevronDown, ExternalLink, LayoutGrid, Settings, Dices, Sparkles, HelpCircle, Github } from 'lucide-react';
+import { Film, Search, Menu, X, Star, Tv2, Clapperboard, Tv, Lightbulb, Network, List, Radio, Unlock, ChevronDown, ExternalLink, LayoutGrid, Settings, Dices, Sparkles, HelpCircle, Github, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileMenu from './ProfileMenu';
-import NotificationsPopup from './NotificationsPopup';
-import { getUnreadNotificationsCount, getNotificationsDisabled } from '../services/apiNotificationService';
 import { encodeId } from '../utils/idEncoder';
 
 import { useSearch } from '../context/SearchContext';
-import { isUserVip } from '../utils/authUtils';
 import { useTranslation } from 'react-i18next';
 import { SquareBackground } from './ui/square-background';
 import { APRIL_FOOLS_ADMIN_PATH, isAprilFoolsAdminEnabled } from '../utils/aprilFools';
@@ -64,17 +61,10 @@ const Header: React.FC = () => {
     return () => window.removeEventListener('snowfall_toggled', handleSnowfallToggle);
   }, []);
 
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notificationsDisabled, setNotificationsDisabled] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isVip, setIsVip] = useState(false);
-
   const [headerQuery, setHeaderQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
-  const notificationsRef = useRef<HTMLDivElement>(null);
   const exploreRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const location = useLocation();
@@ -120,79 +110,26 @@ const Header: React.FC = () => {
       items: [
         { name: t('nav.watchParty'), path: '/watchparty/list', icon: <Users size={20} />, color: 'orange', desc: t('nav.watchPartyDesc') },
         { name: t('nav.liveTV'), path: '/live-tv', icon: <Tv size={20} />, color: 'red', desc: t('nav.liveTVDesc') },
-        ...(isVip ? [{ name: t('nav.francetv'), path: '/ftv', icon: <Radio size={20} />, color: 'sky' as const, desc: t('nav.francetvDesc') }] : []),
+        { name: t('nav.francetv'), path: '/ftv', icon: <Radio size={20} />, color: 'sky' as const, desc: t('nav.francetvDesc') },
       ]
     },
     {
       title: t('nav.more'),
       items: [
-        ...(isVip ? [{ name: t('nav.debrid'), path: '/debrid', icon: <Unlock size={20} />, color: 'yellow' as const, desc: t('nav.debridDesc') }] : []),
+        { name: t('nav.debrid'), path: '/debrid', icon: <Unlock size={20} />, color: 'yellow' as const, desc: t('nav.debridDesc') },
         { name: t('nav.settings'), path: '/settings', icon: <Settings size={20} />, color: 'gray', desc: t('nav.settingsDesc') },
         { name: t('nav.helpHub'), path: '/help', icon: <HelpCircle size={20} />, color: 'indigo', desc: t('nav.helpHubDesc') },
-        { name: t('nav.github'), path: 'https://github.com/movixcorp/MovixOpenSource', icon: <Github size={20} />, color: 'gray', desc: t('nav.githubDesc'), external: true },
+        { name: t('nav.github'), path: 'https://github.com/LKSTVcorp/LKSTVOpenSource', icon: <Github size={20} />, color: 'gray', desc: t('nav.githubDesc'), external: true },
         { name: t('footer.ourUrls'), path: 'https://movix.health', icon: <ExternalLink size={20} />, color: 'gray', desc: t('nav.officialLinksDesc'), external: true },
       ]
     },
-  ].filter(g => g.items.length > 0), [t, isVip]);
-
-  // Auth
-  useEffect(() => {
-    const checkAuth = () => {
-      const auth = localStorage.getItem('auth');
-      const discordAuth = localStorage.getItem('discord_auth');
-      const googleAuth = localStorage.getItem('google_auth');
-      const bip39Auth = localStorage.getItem('bip39_auth');
-      const isVipUser = isUserVip();
-      const isAuth = discordAuth === 'true' || googleAuth === 'true' || bip39Auth === 'true' || !!auth;
-      setIsAuthenticated(isAuth);
-      setIsVip(isVipUser);
-    };
-    checkAuth();
-    window.addEventListener('storage', checkAuth);
-    return () => window.removeEventListener('storage', checkAuth);
-  }, []);
-
-  // Notifications
-  const refreshUnreadCount = useCallback(async () => {
-    if (!isAuthenticated) { setUnreadCount(0); return; }
-    try {
-      const count = await getUnreadNotificationsCount();
-      setUnreadCount(count);
-    } catch {
-      setUnreadCount(0);
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      refreshUnreadCount();
-      getNotificationsDisabled().then(setNotificationsDisabled);
-      const interval = setInterval(refreshUnreadCount, 30000);
-      return () => clearInterval(interval);
-    } else {
-      setUnreadCount(0);
-      setNotificationsDisabled(false);
-    }
-  }, [refreshUnreadCount, isAuthenticated]);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      setNotificationsDisabled((e as CustomEvent).detail);
-    };
-    window.addEventListener('notifications_disabled_changed', handler);
-    return () => window.removeEventListener('notifications_disabled_changed', handler);
-  }, []);
+  ], [t]);
 
   // Click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node) && searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
         setShowAutocomplete(false);
-      }
-      if (showNotifications && notificationsRef.current) {
-        const target = event.target as HTMLElement;
-        if (target.closest('[data-notification-button]') || target.closest('[data-notifications-popup]')) return;
-        if (!notificationsRef.current.contains(target)) setShowNotifications(false);
       }
       // Fermer mega menu desktop au clic extérieur
       if (isExploreOpen && exploreRef.current) {
@@ -204,7 +141,7 @@ const Header: React.FC = () => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showNotifications, isExploreOpen]);
+  }, [isExploreOpen]);
 
   // Bloquer le scroll (html + body + Lenis) quand le menu fullscreen est ouvert
   useEffect(() => {
@@ -246,7 +183,6 @@ const Header: React.FC = () => {
     setShowAutocomplete(false);
     setIsExploreOpen(false);
     setIsMobileSearchOpen(false);
-    setShowNotifications(false);
     if (location.pathname !== '/search') setHeaderQuery('');
   }, [location.pathname]);
 
@@ -357,7 +293,9 @@ const Header: React.FC = () => {
   return (
     <>
       <header className="!fixed inset-x-0 top-0 w-full z-[11000] transition-all duration-300">
-        <div className="absolute inset-0 pointer-events-none z-0 bg-gradient-to-b from-black/90 via-black/70 to-transparent" aria-hidden="true" />
+        {/* FUI — verre fumé + séparateur lumineux */}
+        <div className="absolute inset-0 pointer-events-none z-0 backdrop-blur-xl bg-black/75 border-b border-white/[0.05]" aria-hidden="true" />
+        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent pointer-events-none z-20" aria-hidden="true" />
         <div className="relative z-10">
           <div className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto">
             <div className="flex items-center h-16 px-4 md:px-6 lg:px-8 gap-3 md:gap-5">
@@ -378,7 +316,9 @@ const Header: React.FC = () => {
                   }
                 }}
               >
-                <span className="text-red-600 tracking-wider">MOVIX</span>
+                <span className="font-black tracking-widest text-white">
+                  LKS<span className="text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]"> TV</span>
+                </span>
               </Link>
 
               {/* Desktop Nav: 3 items principaux + Explorer */}
@@ -389,8 +329,8 @@ const Header: React.FC = () => {
                     to={item.path}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all duration-200 ${
                       item.isActive
-                        ? 'text-white bg-white/10 font-medium'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        ? 'text-red-400 bg-red-500/10 font-medium border border-red-500/25 shadow-[0_0_14px_rgba(239,68,68,0.25)] drop-shadow-none'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
                     }`}
                   >
                     {item.icon}
@@ -422,8 +362,8 @@ const Header: React.FC = () => {
                   onClick={() => setIsExploreOpen(!isExploreOpen)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all duration-200 border ${
                     isExploreOpen
-                      ? 'text-white bg-white/10 border-white/20'
-                      : 'text-gray-400 hover:text-white border-white/10 hover:border-white/20 hover:bg-white/5'
+                      ? 'text-red-400 bg-red-500/10 border-red-500/25 shadow-[0_0_14px_rgba(239,68,68,0.2)]'
+                      : 'text-gray-400 hover:text-white border-white/[0.08] hover:border-white/20 hover:bg-white/5'
                   }`}
                 >
                   <LayoutGrid size={15} />
@@ -444,9 +384,9 @@ const Header: React.FC = () => {
                     value={headerQuery}
                     onChange={handleQueryChange}
                     placeholder={t('header.searchPlaceholder')}
-                    className="w-full py-2 pl-9 pr-3 bg-white/5 text-white rounded-xl border border-white/10 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 focus:bg-white/10 placeholder-gray-500 text-sm transition-all"
+                    className="w-full py-1.5 pl-9 pr-3 bg-black/60 text-white rounded-sm border border-white/[0.08] focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/25 focus:shadow-[0_0_12px_rgba(239,68,68,0.15)] focus:bg-black/80 placeholder-gray-600 text-sm font-mono tracking-wide transition-all backdrop-blur-md"
                   />
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500/50" />
                   {headerQuery && (
                     <button
                       type="button"
@@ -484,35 +424,6 @@ const Header: React.FC = () => {
                 >
                   <Search size={20} />
                 </motion.button>
-
-                {/* Notifications */}
-                {isAuthenticated && !notificationsDisabled && (
-                  <div className="relative" ref={notificationsRef}>
-                    <motion.button
-                      data-notification-button
-                      className="relative flex items-center justify-center p-2 text-gray-400 hover:text-white transition-colors"
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => setShowNotifications(!showNotifications)}
-                    >
-                      <Bell size={20} />
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 bg-red-600 text-white text-[10px] rounded-full h-4 min-w-4 flex items-center justify-center px-1 font-bold">
-                          {unreadCount > 9 ? '9+' : unreadCount}
-                        </span>
-                      )}
-                    </motion.button>
-                    <AnimatePresence>
-                      {showNotifications && (
-                        <div className="fixed right-4 sm:right-6 top-16 z-50">
-                          <NotificationsPopup
-                            onClose={() => setShowNotifications(false)}
-                            onNotificationUpdate={refreshUnreadCount}
-                          />
-                        </div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
 
                 {/* Profile */}
                 <div className="flex items-center cursor-pointer relative shrink-0">

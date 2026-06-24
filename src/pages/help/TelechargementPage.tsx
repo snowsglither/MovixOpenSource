@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HardDriveDownload } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -8,7 +8,7 @@ const TelechargementPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.telechargement.title')} — Movix`;
+    document.title = `${t('help.telechargement.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

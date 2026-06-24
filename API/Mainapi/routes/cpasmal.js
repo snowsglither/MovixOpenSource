@@ -37,12 +37,13 @@ let deps = {
 function _createScopedRequest() {
   const proxies = deps.DARKINO_PROXIES;
   if (!proxies || proxies.length === 0) {
-    throw new Error('Cpasmal: aucun proxy HTTP configuré (DARKINO_PROXIES vide)');
+    // Pas de proxy configuré — connexion directe (dev local sans proxy)
+    return (config) => deps.axiosCpasmalRequest({ ...config });
   }
   const proxy = proxies[Math.floor(Math.random() * proxies.length)];
   const agents = deps.getDarkinoHttpProxyAgent(proxy);
   if (!agents) {
-    throw new Error(`Cpasmal: impossible de créer l'agent proxy pour ${proxy.host}:${proxy.port}`);
+    return (config) => deps.axiosCpasmalRequest({ ...config });
   }
   agents._label = `${proxy.host}:${proxy.port}`;
   return (config) => deps.axiosCpasmalRequest({ ...config, _cpasmalAgents: agents });

@@ -1,4 +1,4 @@
-// src/components/Settings/SourcePriorityPanel.tsx
+﻿// src/components/Settings/SourcePriorityPanel.tsx
 //
 // Panneau "Priorité des sources" intégré à Settings. Milestones 5 + 6 :
 //   - Tabs [Films & Séries] / [Animes]
@@ -236,8 +236,8 @@ export const SourcePriorityPanel: React.FC = () => {
   useEffect(() => subscribeToPriorityChanges(setPrefs), []);
   useEffect(() => {
     const h = () => setExtractionPrefsState(getExtractionPrefs());
-    window.addEventListener('movix-extraction-prefs-changed', h);
-    return () => window.removeEventListener('movix-extraction-prefs-changed', h);
+    window.addEventListener('LKS TV-extraction-prefs-changed', h);
+    return () => window.removeEventListener('LKS TV-extraction-prefs-changed', h);
   }, []);
 
   const hosterIsDisabledInExtractors = useMemo(() => {

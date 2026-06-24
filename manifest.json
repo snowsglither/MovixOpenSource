@@ -1,6 +1,6 @@
 {
-  "name": "Movix",
-  "short_name": "Movix",
+  "name": "LKS TV",
+  "short_name": "LKS TV",
   "description": "Streaming de films et séries en français gratuit",
   "start_url": "/",
   "display": "standalone",

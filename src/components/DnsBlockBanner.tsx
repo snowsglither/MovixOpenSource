@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -12,7 +12,7 @@ let dnsPopupDismissed = false;
 
 const DOWNLOAD_URL = 'https://one.one.one.one/';
 const HELP_PATH = '/help/dns';
-const TOAST_ID = 'movix-dns-block';
+const TOAST_ID = 'LKS TV-dns-block';
 
 const DnsBlockBanner: React.FC = () => {
   const { t } = useTranslation();
@@ -116,9 +116,9 @@ const DnsBlockBanner: React.FC = () => {
       );
     };
 
-    window.addEventListener('movix:dns-blocked', onBlocked);
+    window.addEventListener('LKS TV:dns-blocked', onBlocked);
     return () => {
-      window.removeEventListener('movix:dns-blocked', onBlocked);
+      window.removeEventListener('LKS TV:dns-blocked', onBlocked);
     };
   }, [t, navigate]);
 

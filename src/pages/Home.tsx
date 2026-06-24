@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios, { CancelTokenSource } from 'axios';
 import { useLocation } from 'react-router-dom';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
@@ -19,6 +19,7 @@ import { SITE_URL } from '../config/runtime';
 import { getTmdbLanguage } from '../i18n';
 import { getPersonalizedRecommendations, isRecommendationsEnabled, PersonalizedRecommendations } from '../services/recommendationService';
 import CarouselTitle from '../components/CarouselTitle';
+import { profileStorageKey } from '../services/lkstvProfileService';
 
 // Nombre de sections à charger immédiatement (les premières sont prioritaires)
 const IMMEDIATE_LOAD_COUNT = 3;
@@ -207,7 +208,7 @@ const Home: React.FC = () => {
   const sliderIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const cancelTokenSourceRef = useRef<CancelTokenSource | null>(null);
 
-  // Track page visit for Movix Wrapped
+  // Track page visit for LKS TV Wrapped
   useWrappedTracker({
     mode: 'page',
     pageData: { pageName: 'home' },
@@ -257,8 +258,8 @@ const Home: React.FC = () => {
       setLoading(true);
 
       // Check for cached data first
-      const cachedData = sessionStorage.getItem('movix_home_data');
-      const cacheTimestamp = sessionStorage.getItem('movix_home_data_timestamp');
+      const cachedData = sessionStorage.getItem('LKSTV_home_data');
+      const cacheTimestamp = sessionStorage.getItem('LKSTV_home_data_timestamp');
 
       // Use cache if it exists and is less than 15 minutes old
       if (cachedData && cacheTimestamp) {
@@ -446,8 +447,8 @@ const Home: React.FC = () => {
         allItems: filteredItems
       };
 
-      sessionStorage.setItem('movix_home_data', JSON.stringify(cacheData));
-      sessionStorage.setItem('movix_home_data_timestamp', Date.now().toString());
+      sessionStorage.setItem('LKSTV_home_data', JSON.stringify(cacheData));
+      sessionStorage.setItem('LKSTV_home_data_timestamp', Date.now().toString());
 
       // Organize content into categories
       organizeContentByCategories(filteredItems);
@@ -468,8 +469,8 @@ const Home: React.FC = () => {
   // Fetch curated TMDB collections for the "Les sagas incontournables" section
   const fetchSagaCollections = async () => {
     try {
-      const cacheKey = 'movix_sagas_data';
-      const cacheTsKey = 'movix_sagas_data_ts';
+      const cacheKey = 'LKSTV_sagas_data';
+      const cacheTsKey = 'LKSTV_sagas_data_ts';
       const cached = sessionStorage.getItem(cacheKey);
       const cachedTs = sessionStorage.getItem(cacheTsKey);
       const oneDayMs = 24 * 60 * 60 * 1000;
@@ -571,7 +572,8 @@ const Home: React.FC = () => {
   useEffect(() => {
     const loadContinueWatching = async () => {
       try {
-        const savedItems = localStorage.getItem('continueWatching');
+        const cwKey = profileStorageKey('continueWatching');
+        const savedItems = localStorage.getItem(cwKey);
         if (savedItems) {
           // Check if we need to migrate from old format to new format
           let migratedData: { movies: any[], tv: any[] };
@@ -589,7 +591,7 @@ const Home: React.FC = () => {
                   migratedData.tv.push({ id: item.id, currentEpisode: item.currentEpisode, lastAccessed: new Date().toISOString() });
                 }
               });
-              localStorage.setItem('continueWatching', JSON.stringify(migratedData));
+              localStorage.setItem(cwKey, JSON.stringify(migratedData));
             } else {
               migratedData = parsedData;
 
@@ -608,7 +610,7 @@ const Home: React.FC = () => {
 
                 if (needsUpdate) {
                   migratedData.movies = updatedMovies;
-                  localStorage.setItem('continueWatching', JSON.stringify(migratedData));
+                  localStorage.setItem(cwKey, JSON.stringify(migratedData));
                 }
               }
             }
@@ -802,7 +804,8 @@ const Home: React.FC = () => {
 
   const removeFromContinueWatching = useCallback((itemId: number, mediaType: string, skipConfirmation = false) => {
     if (skipConfirmation || window.confirm(t('home.confirmRemoveItem'))) {
-      const continueWatching = JSON.parse(localStorage.getItem('continueWatching') || '{"movies": [], "tv": []}');
+      const cwKey = profileStorageKey('continueWatching');
+      const continueWatching = JSON.parse(localStorage.getItem(cwKey) || '{"movies": [], "tv": []}');
 
       // Ensure structure exists
       if (!continueWatching.movies) continueWatching.movies = [];
@@ -818,7 +821,7 @@ const Home: React.FC = () => {
         continueWatching.tv = continueWatching.tv.filter((tvShow: any) => tvShow.id !== itemId);
       }
 
-      localStorage.setItem('continueWatching', JSON.stringify(continueWatching));
+      localStorage.setItem(cwKey, JSON.stringify(continueWatching));
 
       // Update the UI state
       setContinueWatching(prev => prev.filter(item => !(item.id === itemId && item.media_type === mediaType)));
@@ -827,27 +830,27 @@ const Home: React.FC = () => {
 
   const removeAllContinueWatching = useCallback(() => {
     if (window.confirm(t('home.confirmRemoveAll'))) {
-      localStorage.setItem('continueWatching', JSON.stringify({ "movies": [], "tv": [] }));
+      localStorage.setItem(profileStorageKey('continueWatching'), JSON.stringify({ "movies": [], "tv": [] }));
       setContinueWatching([]);
     }
   }, [t]);
 
   useEffect(() => {
     // Simple title for homepage
-    document.title = `${t('nav.home')} - Movix`;
+    document.title = `${t('nav.home')} - LKS TV`;
 
     // Add or update structured data for a WebSite
     const structuredData = {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      "name": "Movix",
+      "name": "LKS TV",
       "url": SITE_URL,
       "potentialAction": {
         "@type": "SearchAction",
         "target": `${SITE_URL}/search?q={search_term_string}`,
         "query-input": "required name=search_term_string"
       },
-      "description": "Movix - Plateforme de streaming gratuite proposant des films et séries en français. Regardez en ligne sans inscription."
+      "description": "LKS TV - Plateforme de streaming gratuite proposant des films et séries en français. Regardez en ligne sans inscription."
     };
 
     // Add structured data to head
@@ -1066,7 +1069,6 @@ const Home: React.FC = () => {
               {!loading && (
                 <div>
                   <div className="pt-8 pb-20 sm:pt-12 sm:pb-32">
-                    <TelegramPromotion />
                   </div>
 
                   {/* Tendances - Lazy loaded (index 3) */}

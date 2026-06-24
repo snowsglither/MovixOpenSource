@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search as SearchIcon, Loader, Filter, Star, Calendar, User, Film, Award, X, LayoutGrid, List, ExternalLink, Globe, Tag, Sparkles, Tv, ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -549,7 +549,7 @@ const Search: React.FC = () => {
 
     // Set simple title
     React.useEffect(() => {
-        document.title = `${t('search.title')} - Movix`;
+        document.title = `${t('search.title')} - LKS TV`;
     }, []);
 
     const filtersActive = showFilters || selectedGenres.length > 0 || director || actor || year || selectedKeywords.length > 0 || selectedLanguage || selectedCountry || selectedProviders.length > 0;

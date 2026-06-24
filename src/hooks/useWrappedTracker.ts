@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+﻿import { useEffect, useRef, useCallback } from 'react';
 import { getResolvedUserId } from '../utils/accountAuth';
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
@@ -33,7 +33,7 @@ interface UseWrappedTrackerOptions {
 }
 
 /**
- * Hook to track viewing time and page visits for Movix Wrapped 2026.
+ * Hook to track viewing time and page visits for LKS TV Wrapped 2026.
  * Respects privacy_data_collection setting in localStorage.
  * Sends data every 30 seconds to minimize request spam.
  */

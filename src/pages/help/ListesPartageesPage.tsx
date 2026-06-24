@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { List } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -8,7 +8,7 @@ const ListesPartageesPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.listesPartagees.title')} — Movix`;
+    document.title = `${t('help.listesPartagees.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

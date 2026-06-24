@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -85,7 +85,7 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBounda
 
     const embeds = [
       {
-        title: ':rotating_light: Crash Report — Movix',
+        title: ':rotating_light: Crash Report — LKS TV',
         color: 0xdc2626,
         fields: [
           { name: 'Erreur', value: '```\n' + truncate(error?.message ?? 'Erreur inconnue', 900) + '\n```', inline: false },
@@ -110,7 +110,7 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBounda
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: 'Movix Crash Reporter',
+          username: 'LKS TV Crash Reporter',
           embeds,
         }),
       });
@@ -145,7 +145,7 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBounda
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <div>
-              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#fff' }}>Movix a rencontré une erreur</h1>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#fff' }}>LKS TV a rencontré une erreur</h1>
               <p style={{ margin: '4px 0 0', fontSize: 14, color: '#9ca3af' }}>Une erreur inattendue s'est produite. Les détails sont affichés ci-dessous.</p>
             </div>
           </div>

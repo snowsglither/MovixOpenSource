@@ -2700,8 +2700,12 @@ class ProxyServer:
     async def _check_vip(self, request: Request) -> bool:
         """Verify VIP access key directly against MySQL access_keys table.
         Returns True if VIP, False otherwise. Results are cached for VIP_CACHE_TTL seconds."""
+        # Local dev bypass: if LOCAL_DEV_VIP_BYPASS=true, skip MySQL check entirely
+        if os.environ.get('LOCAL_DEV_VIP_BYPASS', '').lower() == 'true':
+            return True
+
         raw_key = request.headers.get('x-access-key', '')
-        
+
         if not raw_key or not raw_key.strip():
             return False
         
@@ -3106,27 +3110,61 @@ class ProxyServer:
                 resp.headers['X-Cache'] = 'HIT'
                 return resp
             
+            parsed_vidmoly = urlparse(url)
+            vidmoly_origin = f"{parsed_vidmoly.scheme}://{parsed_vidmoly.netloc}"
+            VIDMOLY_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
             headers = {
-                'accept': 'text/html,*/*',
-                'referer': 'https://voirdrama.to/',
-                'user-agent': 'Mozilla/5.0 Chrome/143.0.0.0'
+                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'accept-language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+                'referer': vidmoly_origin + '/',
+                'user-agent': VIDMOLY_UA,
+                'sec-fetch-dest': 'iframe',
+                'sec-fetch-mode': 'navigate',
+                'sec-fetch-site': 'cross-site',
             }
-            
-            html, _ = await self._fetch_with_redirects(url, headers, use_proxy=True, 
-                                                        specific_proxy=VIDMOLY_PROXY)
-            
-            # Try multiple patterns
+
+            session = self.sessions.get('normal')
+            timeout = ClientTimeout(total=20)
+
+            # Step 1: initial request (may return JS challenge)
+            async with session.get(url, headers=headers, timeout=timeout) as resp1:
+                html = await resp1.text()
+
+            # Vidmoly uses a JWT bot-check: window.location.replace('...?ch=1&js=TOKEN...')
+            # Follow the JS redirect if present
+            js_redirect = re.search(r"window\.location\.replace\(['\"]([^'\"]+)['\"]", html)
+            if js_redirect:
+                challenge_url = js_redirect.group(1)
+                headers2 = dict(headers)
+                headers2['referer'] = url
+                async with session.get(challenge_url, headers=headers2, timeout=timeout) as resp2:
+                    html = await resp2.text()
+
+            # Try multiple patterns for M3U8
             source_url = None
             for pattern in [
-                r'sources:\s*\[\s*{\s*file:\s*["\']([^"\']+)["\']',
+                r'sources:\s*\[\s*\{\s*file:\s*["\']([^"\']+)["\']',
                 r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
-                r'https?://[^\s"\'<>]+\.m3u8[^\s"\'<>]*'
+                r'"file"\s*:\s*"([^"]+\.m3u8[^"]*)"',
+                r'https?://[^\s"\'<>]+\.m3u8[^\s"\'<>]*',
             ]:
                 match = re.search(pattern, html, re.IGNORECASE)
                 if match:
                     source_url = match.group(1) if match.lastindex else match.group(0)
                     break
-            
+
+            # If still not found, try P.A.C.K.E.R decode
+            if not source_url:
+                packer_m = re.search(r'eval\(function\(p,a,c,k,e,d\)\{', html)
+                if packer_m:
+                    try:
+                        decoded = self._deobfuscate_fsvid_script(html[packer_m.start():])
+                        m3u8_list = re.findall(r'https?://[^\s"\'<>]+\.m3u8[^\s"\'<>]*', decoded)
+                        if m3u8_list:
+                            source_url = m3u8_list[0]
+                    except Exception:
+                        pass
+
             if not source_url:
                 return web.json_response({'error': 'M3U8 not found'}, status=404)
             
@@ -3159,43 +3197,49 @@ class ProxyServer:
                 resp.headers['X-Cache'] = 'HIT'
                 return resp
             
+            SIBNET_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
             headers = {
-                'accept': 'text/html,*/*',
+                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'accept-language': 'fr-FR,fr;q=0.9,en-US;q=0.8',
                 'referer': 'https://video.sibnet.ru/',
-                'user-agent': 'Mozilla/5.0 Chrome/140.0.0.0'
+                'user-agent': SIBNET_UA,
+                'sec-fetch-dest': 'iframe',
+                'sec-fetch-mode': 'navigate',
+                'sec-fetch-site': 'cross-site',
             }
-            
+
             # Use SIBNET proxy
             session = self.sessions.get('sibnet', self.sessions['normal'])
-            timeout = ClientTimeout(total=15)
-            
+            timeout = ClientTimeout(total=20)
+
             async with session.get(url, headers=headers, timeout=timeout) as response:
                     if response.status != 200:
                         return web.json_response({'error': 'Fetch failed'}, status=500)
                     html = await response.text()
-            
+
+            # Search all scripts for player.src pattern (no hardcoded index)
+            MP4_PATTERN = r'player\.src\(\[\{\s*src:\s*["\']([^"\']+\.mp4[^"\']*)["\']'
+            mp4_match = None
             soup = BeautifulSoup(html, 'html.parser')
-            body_scripts = soup.find('body').find_all('script') if soup.find('body') else []
-            
-            if len(body_scripts) < 22:
-                return web.json_response({'error': 'Script not found'}, status=404)
-            
-            script_content = body_scripts[21].string or ''
-            mp4_match = re.search(r'player\.src\(\[\{\s*src:\s*["\']([^"\']+\.mp4[^"\']*)["\']', script_content)
-            
+            for script_tag in soup.find_all('script'):
+                script_content = script_tag.string or ''
+                mp4_match = re.search(MP4_PATTERN, script_content)
+                if mp4_match:
+                    break
+
             if not mp4_match:
-                mp4_match = re.search(r'player\.src\(\[\{\s*src:\s*["\']([^"\']+\.mp4[^"\']*)["\']', html)
-            
+                mp4_match = re.search(MP4_PATTERN, html)
+
             if not mp4_match:
                 return web.json_response({'error': 'MP4 not found'}, status=404)
-            
+
             mp4_url = f"https://video.sibnet.ru{mp4_match.group(1)}"
-            
+
             # Follow redirect to get final URL
             mp4_headers = {
                 'accept': '*/*',
                 'referer': 'https://video.sibnet.ru/',
-                'user-agent': 'Mozilla/5.0 Chrome/140.0.0.0'
+                'user-agent': SIBNET_UA,
             }
             
             # Continue using same session
@@ -3252,9 +3296,16 @@ class ProxyServer:
         validated = self._validate_uqload_url(embed_url)
         urls = [validated, validated.replace('embed-', '')]
 
+        parsed_uqload = urlparse(embed_url)
+        uqload_origin = f"{parsed_uqload.scheme}://{parsed_uqload.netloc}"
         headers = {
-            'User-Agent': 'Mozilla/5.0 Chrome/91.0.0.0',
-            'Accept': 'text/html,*/*'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Referer': uqload_origin + '/',
+            'sec-fetch-dest': 'iframe',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-site': 'cross-site',
         }
 
         html = None
@@ -3262,7 +3313,7 @@ class ProxyServer:
             try:
                 # UQLOAD generic fetch -> normal session
                 async with self.sessions['normal'].request('GET', url, headers=headers,
-                                           timeout=ClientTimeout(total=5)) as resp:
+                                           timeout=ClientTimeout(total=20)) as resp:
                     if resp.status == 200:
                         html = await resp.text()
                         break
@@ -3275,9 +3326,24 @@ class ProxyServer:
         if 'File was deleted' in html:
             raise ValueError('Video deleted')
 
+        # Try direct URL patterns first (unobfuscated)
         m3u8_matches = re.findall(r'https?://[^\s"\'<>]+\.m3u8[^\s"\'<>]*', html)
         if m3u8_matches:
             return m3u8_matches[0]
+
+        # Decode P.A.C.K.E.R obfuscated script (Uqload uses eval+packed JS)
+        packer_match = re.search(r"eval\(function\(p,a,c,k,e,d\)\{", html)
+        if packer_match:
+            try:
+                decoded = self._deobfuscate_fsvid_script(html[packer_match.start():])
+                m3u8_matches = re.findall(r'https?://[^\s"\'<>]+\.m3u8[^\s"\'<>]*', decoded)
+                if m3u8_matches:
+                    return m3u8_matches[0]
+                mp4_matches = re.findall(r'https?://[^\s"\'<>]+/v\.mp4', decoded)
+                if mp4_matches:
+                    return mp4_matches[0]
+            except Exception:
+                pass
 
         mp4_matches = re.findall(r'https?://[^\s"\'<>]+/v\.mp4', html)
         if not mp4_matches:

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -23,6 +23,7 @@ import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { isContentAllowed, getClassificationLabel } from '../../utils/certificationUtils';
 import { getCoflixPreferredUrl } from '../../utils/coflix';
+import { DownloadButton } from '../../components/DownloadButton';
 
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
@@ -256,20 +257,17 @@ const checkMovieAvailability = async (movieId: string) => {
       console.error('Error fetching custom links from API:', apiError);
     }
 
-    // Check Frembed availability
+    // Check Frembed availability — via backend proxy pour éviter le CORS
     try {
-      const frembedResponse = await axios.get(`https://frembed.click/api/public/v1/movies/${movieId}`, { timeout: 1000 });
-      console.log(`Checking Frembed for ID ${movieId}:`, frembedResponse.data);
+      const frembedResponse = await axios.get(`${MAIN_API}/api/frembed/check/movie/${movieId}`, { timeout: 5000 });
       const isFrembedAvailable = frembedResponse.data.status === 200 && frembedResponse.data.result?.totalItems > 0;
-
       return {
         isAvailable: true,
         customLinks: customLinks || [],
         frembedAvailable: isFrembedAvailable,
         mp4Links: mp4Links || []
       };
-    } catch (frembedError) {
-      console.error('Error checking Frembed availability:', frembedError);
+    } catch {
       return {
         isAvailable: true,
         customLinks: customLinks || [],
@@ -641,7 +639,7 @@ const WatchMovie: React.FC = () => {
   // Ajout de l'état pour savoir si l'utilisateur a cliqué sur la pub
   const [hasClickedAd, setHasClickedAd] = useState(false);
 
-  // Movix Wrapped 2026 - Track movie viewing time
+  // LKS TV Wrapped 2026 - Track movie viewing time
   useWrappedTracker({
     mode: 'viewing',
     viewingData: id ? {
@@ -3144,6 +3142,24 @@ const WatchMovie: React.FC = () => {
         data-premid-source-label={embedType || selectedSource || undefined}
         data-premid-source-detail={preMidSourceDetail}
       />
+
+      {/* Bouton téléchargement hors-ligne — overlay fixe */}
+      {mp4Sources.length > 0 && movieTitle && (
+        <div className="fixed bottom-6 right-4 z-[9998]">
+          <DownloadButton
+            compact
+            request={{
+              type: 'movie',
+              tmdbId: Number(id),
+              title: movieTitle,
+              thumbnail: posterPath ? `https://image.tmdb.org/t/p/w185${posterPath}` : undefined,
+              sourceUrl: mp4Sources[0].url,
+              language: mp4Sources[0].language,
+            }}
+          />
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex flex-col items-center justify-center h-full bg-black">
           <div className="loading-container">
@@ -3377,7 +3393,7 @@ const WatchMovie: React.FC = () => {
                   setSelectedMp4Source(0);
                   setVideoSource(mp4Sources[0].url);
                 } else {
-                  // Fallback order: Supervideo (Omega), Multi (Coflix), Frembed, Movix (custom)
+                  // Fallback order: Supervideo (Omega), Multi (Coflix), Frembed, LKS TV (custom)
                   const supervideo = omegaData ? getSupervideoFromOmega(omegaData) : null;
                   if (supervideo && omegaData) {
                     setSelectedSource('omega');

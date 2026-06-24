@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
+﻿import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -226,7 +226,7 @@ const WatchPartyRoom: React.FC = () => {
     [safeRemarkGfm],
   );
 
-  // Track page visit for Movix Wrapped
+  // Track page visit for LKS TV Wrapped
   useWrappedTracker({
     mode: 'page',
     pageData: { pageName: 'watchparty' },

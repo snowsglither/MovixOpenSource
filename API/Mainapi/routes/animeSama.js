@@ -159,6 +159,12 @@ const isValidPlayerUrl = (url) => {
   return true;
 };
 
+// ---- Helper: strip /* */ and <!-- --> block comments from JS (mirrors Sky-NiniKo/anime-sama_api) ----
+const removeJsBlockComments = (str) => {
+  str = str.replace(/\/\*[\W\w]*?\*\//g, '');
+  return str.replace(/<!--[\W\w]*?-->/g, '');
+};
+
 // ---- Classes ----
 
 class Players {
@@ -166,6 +172,19 @@ class Players {
     this.availables = availables;
     this._best = null;
     this.index = 1;
+
+    // Mirror AnimeSama's script_videos.js swapPlayers() — the site swaps positions 0 and 1
+    this._swapPlayers();
+
+    // vidmoly.to is the old/inactive domain; vidmoly.net is the current one
+    this.availables = this.availables.map(url =>
+      typeof url === 'string' ? url.replace('vidmoly.to', 'vidmoly.net') : url
+    );
+  }
+
+  _swapPlayers() {
+    if (this.availables.length < 2) return;
+    [this.availables[0], this.availables[1]] = [this.availables[1], this.availables[0]];
   }
 
   get best() {
@@ -324,7 +343,7 @@ class Season {
         return [];
       }
 
-      const episodesJs = episodesJsResponse.data;
+      let episodesJs = episodesJsResponse.data;
 
       if (typeof episodesJs === 'string' && (
         episodesJs.includes('<!doctype html>') ||
@@ -340,9 +359,16 @@ class Season {
         return [];
       }
 
-      const playersList = episodesJs.split('[').slice(1);
-      const playersListLinks = playersList.map(player => {
-        const matches = player.match(/'(.+?)'/g);
+      // Strip block comments before parsing to avoid matching commented-out player arrays
+      episodesJs = removeJsBlockComments(episodesJs);
+
+      // Use the same regex as the reference (Sky-NiniKo/anime-sama_api) to extract eps arrays
+      const epsMatches = [...episodesJs.matchAll(/eps\d+ ?= ?\[([\W\w]+?)\]/g)];
+      if (epsMatches.length === 0) return [];
+
+      const playersListLinks = epsMatches.map(match => {
+        const content = match[1];
+        const matches = content.match(/'(.+?)'/g);
         if (!matches) return [];
 
         const allLinks = matches.map(link => {
@@ -354,8 +380,7 @@ class Season {
           return cleanLink;
         });
 
-        const validLinks = allLinks.filter(isValidPlayerUrl);
-        return validLinks;
+        return allLinks.filter(isValidPlayerUrl);
       });
 
       const result = zipVarlen(...playersListLinks);
@@ -525,7 +550,8 @@ class AnimeSama {
       const cacheKey = generateCacheKey(query);
       if (!forceNoCache) {
         const cachedResults = await deps.getFromCacheNoExpiration(ANIME_SAMA_CACHE_DIR, cacheKey);
-        if (cachedResults) {
+        // Ne pas servir un tableau vide depuis le cache — il faut retenter la recherche
+        if (cachedResults && Array.isArray(cachedResults) && cachedResults.length > 0) {
           return cachedResults.map(result =>
             new Catalogue(result.url, result.name, this.client, result)
           );
@@ -815,8 +841,10 @@ router.get('/search/:query', async (req, res) => {
     }));
 
     // --- Filtering unwanted URLs before response ---
+    // Note: vidmoly.to has been converted to vidmoly.net by Players constructor
     const unwantedUrls = [
       'https://video.sibnet.ru/shell.php?videoid=',
+      'https://vidmoly.net/embed-.html',
       'https://vidmoly.to/embed-.html',
       'https://sendvid.com/embed/',
       'https://vk.com/video_ext.php?oid=&hd=3'
@@ -958,6 +986,7 @@ router.get('/search/:query', async (req, res) => {
             try {
               const unwantedUrlsForCache = [
                 'https://video.sibnet.ru/shell.php?videoid=',
+                'https://vidmoly.net/embed-.html',
                 'https://vidmoly.to/embed-.html',
                 'https://sendvid.com/embed/',
                 'https://vk.com/video_ext.php?oid=&hd=3'
@@ -1083,6 +1112,29 @@ router.delete('/search/:query/cache', async (req, res) => {
     console.error('Erreur suppression cache anime:', err);
     return res.status(500).json({ success: false, error: 'Erreur serveur.' });
   }
+});
+
+// GET /purge-all — purge tous les caches AnimeSama (disque + mémoire)
+router.get('/purge-all', async (req, res) => {
+  const results = { disk: 0, memory: 0, errors: [] };
+  try {
+    const files = await fsp.readdir(ANIME_SAMA_CACHE_DIR).catch(() => []);
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        await fsp.unlink(path.join(ANIME_SAMA_CACHE_DIR, file)).catch(() => {});
+        results.disk++;
+      }
+    }
+  } catch (e) {
+    results.errors.push(`Disk: ${e.message}`);
+  }
+  try {
+    if (memoryCache) { memoryCache.flushAll(); results.memory = 1; }
+  } catch (e) {
+    results.errors.push(`Memory: ${e.message}`);
+  }
+  console.log(`[ANIMESAMA] Purge cache: Disk=${results.disk}`);
+  res.json({ success: true, purged: results, timestamp: new Date().toISOString() });
 });
 
 module.exports = router;

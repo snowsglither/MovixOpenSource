@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -34,7 +34,7 @@ interface DownloadLink {
   saison?: number;
   episode?: number;
   full_saison?: number;
-  source?: 'movix' | 'darkiworld';
+  source?: 'LKS TV' | 'darkiworld';
   url?: string;
   added_at?: string | null;
   added_by?: { username: string; avatar: string | null };
@@ -823,10 +823,10 @@ const DownloadPage: React.FC = () => {
     }
   };
 
-  // Fonction pour trier les liens selon l'ordre de priorité (Movix en premier)
+  // Fonction pour trier les liens selon l'ordre de priorité (LKS TV en premier)
   const sortDownloadLinks = (links: DownloadLink[]): DownloadLink[] => {
-    const movix = links.filter(l => l.source === 'movix');
-    const rest = links.filter(l => l.source !== 'movix');
+    const lksTvLinks = links.filter(l => l.source === 'LKS TV');
+    const rest = links.filter(l => l.source !== 'LKS TV');
 
     const priorityOrder: Record<string, number> = {
       '1fichier': 1,
@@ -849,7 +849,7 @@ const DownloadPage: React.FC = () => {
       return sizeB - sizeA;
     });
 
-    return [...movix, ...sortedRest];
+    return [...lksTvLinks, ...sortedRest];
   };
   
   const [tmdbDetails, setTmdbDetails] = useState<TMDBDetails | null>(null);
@@ -869,6 +869,7 @@ const DownloadPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [directLinks, setDirectLinks] = useState<Array<{ url: string; language: string; quality: string; host: string; size?: string }>>([]);
   
   // États pour les dropdowns
   const [isSeasonDropdownOpen, setIsSeasonDropdownOpen] = useState(false);
@@ -923,6 +924,15 @@ const DownloadPage: React.FC = () => {
       }
     };
   }, []);
+
+  // Récupérer les liens directs LKS TV depuis la DB
+  useEffect(() => {
+    if (!id || !type) return;
+    const params = type === 'tv' ? `?season=${selectedSeason}&episode=${selectedEpisode}` : '';
+    axios.get(`${MAIN_API}/api/lkstv/download-links/${type}/${id}${params}`)
+      .then(r => setDirectLinks(r.data.links || []))
+      .catch(() => setDirectLinks([]));
+  }, [id, type, selectedSeason, selectedEpisode]);
 
   // Récupérer les détails TMDB
   useEffect(() => {
@@ -1348,14 +1358,14 @@ const DownloadPage: React.FC = () => {
     setQueueInfo(null);
     setShowLinkSelector(true);
 
-    // Les liens Movix sont déjà des URLs directes (1fichier, Mega, …) ajoutées
+    // Les liens LKS TV sont déjà des URLs directes (1fichier, Mega, …) ajoutées
     // côté admin : pas de décodage Darkino nécessaire.
-    if (link.source === 'movix' && link.url) {
+    if (link.source === 'LKS TV' && link.url) {
       setIsDecoding(false);
       setDecodedLink({
         success: true,
         id: link.id,
-        provider: link.provider || 'movix',
+        provider: link.provider || 'LKS TV',
         embed_url: link.url,
         metadata: {
           language: link.language,
@@ -1672,6 +1682,39 @@ const DownloadPage: React.FC = () => {
                   </div>
                 ) : null}
 
+                {/* Liens directs LKS TV (DB admin) */}
+                {directLinks.length > 0 && (
+                  <div className="mt-4 sm:mt-6">
+                    <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Download className="w-4 h-4 text-green-400" />
+                      Téléchargement direct
+                      <span className="text-xs bg-green-600/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full">{directLinks.length} lien{directLinks.length > 1 ? 's' : ''}</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {directLinks.map((link, i) => (
+                        <a
+                          key={i}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                          className="flex items-center justify-between p-3 sm:p-4 bg-green-900/20 border border-green-500/30 rounded-xl hover:border-green-400/60 hover:bg-green-900/30 transition-all group"
+                        >
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="font-medium text-sm text-green-300 truncate">{link.host}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {link.quality && <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded">{link.quality}</span>}
+                              {link.language && <span className="text-xs text-gray-400">{link.language}</span>}
+                              {link.size && <span className="text-xs text-gray-500">{link.size}</span>}
+                            </div>
+                          </div>
+                          <Download className="w-4 h-4 text-green-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Bouton pour récupérer les liens */}
                 <div className="mt-4 sm:mt-6">
                   <button
@@ -1728,16 +1771,16 @@ const DownloadPage: React.FC = () => {
                                 />
                               )}
                               <span className="font-medium text-sm sm:text-base truncate">{link.provider}</span>
-                              {link.source === 'movix' && (
+                              {link.source === 'LKS TV' && (
                                 <span
                                   className="inline-block ml-2 px-2 py-0.5 text-xs font-semibold rounded bg-blue-500 text-white"
                                   title={
                                     link.added_by
                                       ? `Ajouté par ${link.added_by.username}${link.added_at ? ` le ${new Date(link.added_at).toLocaleDateString(i18n.language)}` : ''}`
-                                      : 'Lien Movix'
+                                      : 'Lien LKS TV'
                                   }
                                 >
-                                  Movix
+                                  LKS TV
                                 </span>
                               )}
                               {link.full_saison === 1 && (

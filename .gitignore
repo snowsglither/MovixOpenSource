@@ -76,3 +76,7 @@ API/BOT/
 **/__pycache__/
 *.pyc
 *.pyo
+
+# Binaries
+cloudflared.exe
+*.exe

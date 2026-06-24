@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import axios from 'axios';
@@ -41,6 +41,7 @@ import { getTmdbLanguage } from '../i18n';
 import i18n from '../i18n';
 import { useProfile } from '../context/ProfileContext';
 import { getClassificationLabel as getClassificationLabelUtil, isContentAllowed } from '../utils/certificationUtils';
+import { profileStorageKey, getActiveProfile } from '../services/lkstvProfileService';
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -1234,15 +1235,15 @@ const VideoPlayer = forwardRef<VideoPlayerRefHandle, VideoPlayerProps>(({ showId
   // State for the next episode (if applicable)
   // const [_nextEpisode, _setNextEpisode] = useState<any>(null);
 
-  // Helper function to transform coflix.upn display name to movix
+  // Helper function to transform coflix.upn display name to LKS TV
   const getDisplayName = (quality: string) => {
     if (!quality) return '';
 
     let displayName = quality;
 
-    // Replace coflix.upn with movix
+    // Replace coflix.upn with LKS TV
     if (displayName.includes('coflix.upn')) {
-      displayName = displayName.replace('coflix.upn', 'movix');
+      displayName = displayName.replace('coflix.upn', 'LKS TV');
     }
 
     // Format "PAS DE PUBLICITE" to title case
@@ -2209,7 +2210,7 @@ const VideoPlayer = forwardRef<VideoPlayerRefHandle, VideoPlayerProps>(({ showId
               onEnded={() => {
                 // On ne tente plus la source suivante automatiquement, on passe juste à l'épisode suivant si besoin
                 const nextEpisodeNum = episodeNumber + 1;
-                const event = new CustomEvent('movix:playNextEpisode', {
+                const event = new CustomEvent('LKS TV:playNextEpisode', {
                   detail: {
                     currentSeason: seasonNumber,
                     currentEpisode: episodeNumber,
@@ -2261,7 +2262,7 @@ const VideoPlayer = forwardRef<VideoPlayerRefHandle, VideoPlayerProps>(({ showId
               })()}
               onNextEpisode={(season, episode) => {
                 // Trigger next episode via custom event which will be handled by the parent component
-                const event = new CustomEvent('movix:playNextEpisode', {
+                const event = new CustomEvent('LKS TV:playNextEpisode', {
                   detail: {
                     currentSeason: seasonNumber,
                     currentEpisode: episodeNumber,
@@ -2288,7 +2289,7 @@ const VideoPlayer = forwardRef<VideoPlayerRefHandle, VideoPlayerProps>(({ showId
               autoPlay={true}
               onEnded={() => {
                 const nextEpisodeNum = episodeNumber + 1;
-                const event = new CustomEvent('movix:playNextEpisode', {
+                const event = new CustomEvent('LKS TV:playNextEpisode', {
                   detail: {
                     currentSeason: seasonNumber,
                     currentEpisode: episodeNumber,
@@ -2340,7 +2341,7 @@ const VideoPlayer = forwardRef<VideoPlayerRefHandle, VideoPlayerProps>(({ showId
               })()}
               onNextEpisode={(season, episode) => {
                 // Trigger next episode via custom event which will be handled by the parent component
-                const event = new CustomEvent('movix:playNextEpisode', {
+                const event = new CustomEvent('LKS TV:playNextEpisode', {
                   detail: {
                     currentSeason: seasonNumber,
                     currentEpisode: episodeNumber,
@@ -2406,7 +2407,7 @@ const TVDetails: React.FC = () => {
   const navigate = useNavigate();
   const { currentProfile } = useProfile();
 
-  // Track page visit for Movix Wrapped
+  // Track page visit for LKS TV Wrapped
   useWrappedTracker({
     mode: 'page',
     pageData: id ? { pageName: 'tv-details', contentId: id } : undefined,
@@ -3251,7 +3252,7 @@ const TVDetails: React.FC = () => {
         };
 
         // First, check the continueWatching localStorage data
-        const continueWatching = JSON.parse(localStorage.getItem('continueWatching') || '{"movies": [], "tv": []}') as {
+        const continueWatching = JSON.parse(localStorage.getItem(profileStorageKey('continueWatching')) || '{"movies": [], "tv": []}') as {
           tv?: ContinueWatchingTvEntry[];
         };
 
@@ -3265,7 +3266,7 @@ const TVDetails: React.FC = () => {
             const continueTs = tvShow.lastAccessed ? Date.parse(tvShow.lastAccessed) : NaN;
 
             // Try to get detailed progress data for this specific episode
-            const progressKey = `progress_tv_${id}_s${seasonFromContinue}_e${episodeFromContinue}`;
+            const progressKey = profileStorageKey(`progress_tv_${id}_s${seasonFromContinue}_e${episodeFromContinue}`);
             const progressValue = Number.isFinite(seasonFromContinue) && Number.isFinite(episodeFromContinue)
               ? localStorage.getItem(progressKey)
               : null;
@@ -3295,12 +3296,15 @@ const TVDetails: React.FC = () => {
         }
 
         // Also check all progress_tv_* keys and keep the most recent by timestamp
-        const keyPrefix = `progress_tv_${id}_s`;
+        const _tvPid = getActiveProfile()?.id || '';
+        const keyPrefix = _tvPid ? `${_tvPid}_progress_tv_${id}_s` : `progress_tv_${id}_s`;
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
           if (!key || !key.startsWith(keyPrefix)) continue;
+          // Strip profile prefix before regex matching
+          const strippedKey = _tvPid ? key.slice(_tvPid.length + 1) : key;
           // Expected pattern: progress_tv_<id>_s<season>_e<episode>
-          const match = key.match(/^progress_tv_\d+_s(\d+)_e(\d+)$/);
+          const match = strippedKey.match(/^progress_tv_\d+_s(\d+)_e(\d+)$/);
           if (!match) continue;
           const season = Number(match[1]);
           const episode = Number(match[2]);
@@ -3665,7 +3669,7 @@ const TVDetails: React.FC = () => {
   useEffect(() => {
     if (tvShow) {
       // Simple TV show title
-      document.title = `${tvShow.name} - Movix`;
+      document.title = `${tvShow.name} - LKS TV`;
     } else {
       document.title = t('details.tvShowDefaultTitle');
     }
@@ -4010,11 +4014,11 @@ const TVDetails: React.FC = () => {
     };
 
     // Add event listener
-    document.addEventListener('movix:playNextEpisode', handleNextEpisode as EventListener);
+    document.addEventListener('LKS TV:playNextEpisode', handleNextEpisode as EventListener);
 
     // Cleanup
     return () => {
-      document.removeEventListener('movix:playNextEpisode', handleNextEpisode as EventListener);
+      document.removeEventListener('LKS TV:playNextEpisode', handleNextEpisode as EventListener);
     };
   }, [show, handleEpisodeSelect, id]);
 
@@ -4511,12 +4515,12 @@ const TVDetails: React.FC = () => {
   const tvYear = tvShow.first_air_date && !isNaN(new Date(tvShow.first_air_date).getTime())
     ? new Date(tvShow.first_air_date).getFullYear()
     : null;
-  const tvTitle = tvYear ? `${tvShow.name} (${tvYear}) - Movix` : `${tvShow.name} - Movix`;
+  const tvTitle = tvYear ? `${tvShow.name} (${tvYear}) - LKS TV` : `${tvShow.name} - LKS TV`;
   const tvCanonicalUrl = buildSiteUrl(`/tv/${encodedId || id}`);
   const tvSocialImage = tvShow.backdrop_path || tvShow.poster_path
     ? `https://image.tmdb.org/t/p/original${tvShow.backdrop_path || tvShow.poster_path}`
     : undefined;
-  const tvDescription = tvShow.overview?.trim() || `Découvrez ${tvShow.name} sur Movix.`;
+  const tvDescription = tvShow.overview?.trim() || `Découvrez ${tvShow.name} sur LKS TV.`;
 
   return (
     <MotionConfig reducedMotion="user">

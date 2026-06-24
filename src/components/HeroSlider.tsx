@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { PrefetchLink as Link } from '@/routing/PrefetchLink';
 import { Play, Info, Star, Calendar, Pause } from 'lucide-react';
@@ -69,8 +69,8 @@ const HeroSliderInner: React.FC<HeroSliderProps> = ({ items }) => {
   // Fetch logo URLs for all items with sessionStorage caching
   useEffect(() => {
     const fetchLogos = async () => {
-      const storedCache = sessionStorage.getItem('movix_hero_logos');
-      const storedTimestamp = sessionStorage.getItem('movix_hero_logos_timestamp');
+      const storedCache = sessionStorage.getItem('LKSTV_hero_logos');
+      const storedTimestamp = sessionStorage.getItem('LKSTV_hero_logos_timestamp');
       const oneDayMs = 24 * 60 * 60 * 1000;
 
       let sessionCache: { [key: number]: string | null } = {};
@@ -121,8 +121,8 @@ const HeroSliderInner: React.FC<HeroSliderProps> = ({ items }) => {
       });
 
       setLogoUrls(urls);
-      sessionStorage.setItem('movix_hero_logos', JSON.stringify(logoCache.current));
-      sessionStorage.setItem('movix_hero_logos_timestamp', Date.now().toString());
+      sessionStorage.setItem('LKSTV_hero_logos', JSON.stringify(logoCache.current));
+      sessionStorage.setItem('LKSTV_hero_logos_timestamp', Date.now().toString());
     };
 
     fetchLogos();

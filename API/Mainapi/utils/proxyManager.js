@@ -796,10 +796,23 @@ async function makeAnimeSamaRequest(targetUrl, options = {}) {
     .sort(() => Math.random() - 0.5)
     .slice(0, MAX_ANIMESAMA_CYCLETLS_ATTEMPTS);
 
+  // Fallback direct quand aucun proxy SOCKS5 n'est configuré (dev local)
   if (pool.length === 0) {
-    throw new Error(
-      "[ANIMESAMA CYCLETLS] aucun proxy SOCKS5 defini dans SOCKS5_PROXIES",
-    );
+    console.log(`[ANIMESAMA] Pas de proxy SOCKS5 — requête directe vers ${cleanTargetUrl}`);
+    const axiosConfig = {
+      method: lowerMethod,
+      url: cleanTargetUrl,
+      timeout: timeout * 1000,
+      headers: defaultHeaders,
+      validateStatus: () => true,
+    };
+    if (lowerMethod === 'post' && body) axiosConfig.data = body;
+    const directRes = await axios(axiosConfig);
+    return {
+      data: typeof directRes.data === 'string' ? directRes.data : JSON.stringify(directRes.data),
+      status: directRes.status,
+      headers: directRes.headers || {},
+    };
   }
 
   const cycleTLS = await getCycleTLS();

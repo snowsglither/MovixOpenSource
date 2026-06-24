@@ -616,9 +616,9 @@ const AdminWishboard: React.FC = () => {
             results.push({ name: t('admin.customLinks'), available: false });
         }
 
-        // Check Frembed
+        // Check Frembed — via backend proxy pour éviter le CORS
         try {
-            const response = await axios.get(`https://frembed.click/api/public/v1/movies/${tmdbId}`, { timeout: 3000 });
+            const response = await axios.get(`${MAIN_API}/api/frembed/check/movie/${tmdbId}`, { timeout: 5000 });
             const isAvailable = response.data?.status === 200 && !!response.data?.result;
             results.push({ name: 'Frembed', available: isAvailable });
         } catch {
@@ -729,9 +729,12 @@ const AdminWishboard: React.FC = () => {
             results.push({ name: t('admin.customLinks'), available: false });
         }
 
-        // Check Frembed
+        // Check Frembed — via backend proxy pour éviter le CORS
         try {
-            const response = await axios.get(`https://frembed.click/api/public/v1/tv/${tmdbId}?sa=${season}&epi=${episode}`, { timeout: 3000 });
+            const response = await axios.get(`${MAIN_API}/api/frembed/check/tv/${tmdbId}`, {
+                params: { sa: season, epi: episode },
+                timeout: 5000
+            });
             const isAvailable = response.data?.status === 200 && !!response.data?.result;
             results.push({ name: 'Frembed', available: isAvailable });
         } catch {

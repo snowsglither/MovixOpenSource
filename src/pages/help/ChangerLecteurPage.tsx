@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal } from 'lucide-react';
 import TutoLayout, { TutoSection } from '../../components/TutoLayout';
@@ -9,7 +9,7 @@ const ChangerLecteurPage: React.FC = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    document.title = `${t('help.changerLecteur.title')} — Movix`;
+    document.title = `${t('help.changerLecteur.title')} — LKS TV`;
   }, [t]);
 
   const sections: TutoSection[] = [

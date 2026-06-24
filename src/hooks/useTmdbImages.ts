@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -6,8 +6,8 @@ const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 // Bumper invalide les anciennes entrées v5 qui contenaient ce champ —
 // pas strictement nécessaire pour la correctness (les champs en trop sont
 // ignorés), mais évite de transporter du payload mort en sessionStorage.
-const CACHE_KEY = 'movix_tmdb_images_cache_v6';
-const CACHE_TIMESTAMP_KEY = 'movix_tmdb_images_cache_v6_timestamp';
+const CACHE_KEY = 'LKSTV_tmdb_images_cache_v6';
+const CACHE_TIMESTAMP_KEY = 'LKSTV_tmdb_images_cache_v6_timestamp';
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 type ImageEntry = {

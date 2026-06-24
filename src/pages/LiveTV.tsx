@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, memo } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, memo } from 'react';
 import ReactCountryFlag from 'react-country-flag';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
@@ -732,7 +732,7 @@ const LiveTV: React.FC = () => {
     }
   }, [selectedChannel]);
 
-  // Movix Wrapped 2026 - Track Live TV viewing time (only when channel is open)
+  // LKS TV Wrapped 2026 - Track Live TV viewing time (only when channel is open)
   useWrappedTracker({
     mode: 'viewing',
     viewingData: selectedChannel ? {
@@ -791,7 +791,7 @@ const LiveTV: React.FC = () => {
         // 2. Si extension, récupérer le manifest extension
         let extensionCatalogs: Catalog[] = [];
         if (isExtensionAvailable()) {
-          console.log("Using Movix Extension");
+          console.log("Using LKS TV Extension");
           try {
             const result = await fetchFromExtension<{ catalogs?: Catalog[] }>('GET_MANIFEST');
             extensionCatalogs = result.catalogs || [];
