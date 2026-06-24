@@ -164,6 +164,9 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onSelect }) => {
   const handleSelect = (profile: LKSTVProfile) => {
     setSelected(profile.id);
     setActiveProfile(profile);
+    // Ensure VIP is active immediately for all profiles
+    localStorage.setItem('is_vip', 'true');
+    window.dispatchEvent(new CustomEvent('vipStatusChanged', { detail: { vip: true } }));
     setTimeout(() => onSelect(profile.id), 400);
   };
 
@@ -200,10 +203,12 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onSelect }) => {
     setCreating(true);
     try {
       const created = await createProfile(trimmedName, newColor, newPin || undefined);
+      localStorage.setItem('is_vip', 'true');
       setProfiles((prev) => [...prev, created]);
       setNewName('');
       setNewColor(COLOR_PALETTE[0]);
       setNewPin('');
+      showToast(`Profil "${trimmedName}" créé`);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Erreur création');
     } finally {
