@@ -123,6 +123,22 @@ router.delete('/history/:mediaType/:mediaId', async (req, res) => {
   }
 });
 
+// DELETE /api/lkstv/history — vider tout l'historique d'un profil
+router.delete('/history', async (req, res) => {
+  const profileId = getProfileId(req);
+  if (!profileId) {
+    return res.status(400).json({ error: 'profile_id requis (header x-profile-id)' });
+  }
+  const pool = getPool();
+  try {
+    await pool.execute('DELETE FROM lkstv_history WHERE profile_id = ?', [profileId]);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[lkstvHistory] DELETE /history (all) error:', err);
+    return res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // ─── WATCHLIST ───────────────────────────────────────────────────────────────
 
 // GET /api/lkstv/watchlist

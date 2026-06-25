@@ -124,6 +124,13 @@ export async function removeFromHistory(profileId: string, mediaType: string, me
   });
 }
 
+export async function clearAllHistory(profileId: string): Promise<void> {
+  const r = await fetch(`${API}/api/lkstv/history`, {
+    method: 'DELETE', headers: { 'x-profile-id': profileId }
+  });
+  if (!r.ok) throw new Error('Erreur suppression historique');
+}
+
 // Watchlist
 export async function fetchWatchlist(profileId: string) {
   const r = await fetch(`${API}/api/lkstv/watchlist`, { headers: { 'x-profile-id': profileId } });

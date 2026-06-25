@@ -65,6 +65,7 @@ export const ROUTES: RouteEntry[] = [
   { path: '/oauth/authorize',         loader: lz(() => import('../pages/OAuthAuthorizePage')) },
   { path: '/profile',                 loader: lz(() => import('../pages/Profile')), guard: 'private' },
   { path: '/profile-management',      loader: lz(() => import('../pages/ProfileManagement')) },
+  { path: '/profile-settings',        loader: lz(() => import('../pages/ProfileSettingsPage')) },
   { path: '/alerts',                  loader: lz(() => import('../pages/AlertsPage')) },
 
   // Greenlight
