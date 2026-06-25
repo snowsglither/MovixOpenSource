@@ -532,6 +532,14 @@ stremioAddon.configure({
 });
 app.use('/stremio', stremioAddon.router);
 
+const kodiAddon = require('./routes/kodi');
+kodiAddon.configure({
+  TMDB_API_KEY,
+  TMDB_API_URL,
+  INTERNAL_BASE: `http://localhost:${process.env.PORT || 25565}`,
+});
+app.use('/kodi', kodiAddon.router);
+
 const downloadLinksLeaderboardRouter = require('./routes/downloadLinksLeaderboard');
 app.use('/api/download-links', downloadLinksLeaderboardRouter);
 
