@@ -2989,11 +2989,13 @@ class ProxyServer:
                 if not m3u8_match:
                     return web.json_response({'error': 'M3U8 not found'}, status=404)
                 
+                raw_m3u8 = m3u8_match.group(1)
                 result = {
-                    'm3u8Url': f"{PROXY_BASE}/fsvid-proxy?url={urllib.parse.quote(m3u8_match.group(1))}",
+                    'm3u8Url': raw_m3u8,
+                    'proxyPath': '/fsvid-proxy',
                     'source': 'fsvid'
                 }
-                
+
                 self.fsvid_cache.set(cache_key, result)
                 resp = web.json_response(result)
                 resp.headers['X-Cache'] = 'MISS'
@@ -3081,11 +3083,13 @@ class ProxyServer:
                 if not m3u8_match:
                     return web.json_response({'error': 'M3U8 not found'}, status=404)
                 
+                raw_m3u8 = m3u8_match.group(1)
                 result = {
-                    'm3u8Url': f"{PROXY_BASE}/vidzy-proxy?url={urllib.parse.quote(m3u8_match.group(1))}",
+                    'm3u8Url': raw_m3u8,
+                    'proxyPath': '/vidzy-proxy',
                     'source': 'vidzy'
                 }
-                
+
                 self.vidzy_cache.set(cache_key, result)
                 resp = web.json_response(result)
                 resp.headers['X-Cache'] = 'MISS'

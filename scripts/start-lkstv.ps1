@@ -24,10 +24,15 @@ docker compose -f "$ROOT\docker-compose.yml" up -d 2>&1 | Out-Null
 Write-Host "Attente demarrage MySQL/Redis (10s)..." -ForegroundColor Gray
 Start-Sleep -Seconds 10
 
-# 2. Tunnels Cloudflare
-Write-Host "Demarrage tunnels Cloudflare..." -ForegroundColor Yellow
+# 2. Arreter les anciens services (cloudflared, node, python)
+Write-Host "Arret des anciens services..." -ForegroundColor Yellow
 Stop-Process -Name "cloudflared" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 1
+Stop-Process -Name "node" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "python" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+# 3. Tunnels Cloudflare
+Write-Host "Demarrage tunnels Cloudflare..." -ForegroundColor Yellow
 Start-Process -FilePath $CLOUDFLARED -ArgumentList "tunnel --url http://localhost:25565" -RedirectStandardError "$env:TEMP\tunnel1.txt" -WindowStyle Hidden
 Start-Process -FilePath $CLOUDFLARED -ArgumentList "tunnel --url http://localhost:25566" -RedirectStandardError "$env:TEMP\tunnel2.txt" -WindowStyle Hidden
 Start-Process -FilePath $CLOUDFLARED -ArgumentList "tunnel --url http://localhost:25569" -RedirectStandardError "$env:TEMP\tunnel3.txt" -WindowStyle Hidden

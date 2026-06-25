@@ -638,8 +638,10 @@ async function extractVidzyM3u8Server(vidzyUrl: string): Promise<M3u8Result | nu
     const data = await response.json();
 
     if (data.m3u8Url) {
+      const proxyPath = data.proxyPath || '/vidzy-proxy';
+      const proxiedUrl = `${PROXIES_EMBED_API}${proxyPath}?url=${encodeURIComponent(data.m3u8Url)}`;
       return {
-        m3u8Url: data.m3u8Url,
+        m3u8Url: proxiedUrl,
         success: true
       };
     }
@@ -710,10 +712,12 @@ async function extractFsvidM3u8Server(fsvidUrl: string): Promise<M3u8Result | nu
 
     const data = await response.json();
 
-    const streamUrl = data.m3u8Url || data.url || data.link || data.file || data.source;
+    const rawUrl = data.m3u8Url || data.url || data.link || data.file || data.source;
 
-    if (streamUrl) {
-      return { m3u8Url: streamUrl, success: true };
+    if (rawUrl) {
+      const proxyPath = data.proxyPath || '/fsvid-proxy';
+      const proxiedUrl = `${PROXIES_EMBED_API}${proxyPath}?url=${encodeURIComponent(rawUrl)}`;
+      return { m3u8Url: proxiedUrl, success: true };
     }
 
     failedUrlsCache.add(fsvidUrl);
