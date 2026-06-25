@@ -1,11 +1,5 @@
 # LKS TV - Démarrage automatique des services + tunnels Cloudflare
-# Lance ce script au démarrage pour tout remettre en ligne
-# Tokens via env vars : $env:CF_API_TOKEN / $env:CF_ACCOUNT_ID
-# ou en paramètre    : .\start-lkstv.ps1 -CfToken "..." -CfAccount "..."
-param(
-  [string]$CfToken   = $env:CF_API_TOKEN,
-  [string]$CfAccount = $env:CF_ACCOUNT_ID
-)
+param()
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
@@ -14,12 +8,12 @@ $ROOT        = "C:\Users\ruben\Desktop\MovixOpenSource"
 $CLOUDFLARED = "$ROOT\cloudflared.exe"
 $PYTHON_ENV  = "$ROOT\API\proxiesembed\.env"
 
-# Charge les secrets locaux si présents (gitignored)
-$secretsFile = "$PSScriptRoot\secrets.ps1"
+# Charge les secrets locaux (gitignored)
+$secretsFile = Join-Path $PSScriptRoot "secrets.ps1"
 if (Test-Path $secretsFile) { . $secretsFile }
 
-$CF_API_TOKEN  = if ($CfToken)   { $CfToken }   else { $env:CF_API_TOKEN }
-$CF_ACCOUNT_ID = if ($CfAccount) { $CfAccount } else { $env:CF_ACCOUNT_ID }
+$CF_API_TOKEN  = $env:CF_API_TOKEN
+$CF_ACCOUNT_ID = $env:CF_ACCOUNT_ID
 $CF_PROJECT    = "lks-tv"
 
 Write-Host "=== LKS TV - Demarrage ===" -ForegroundColor Cyan
@@ -30,8 +24,10 @@ docker compose -f "$ROOT\docker-compose.yml" up -d 2>&1 | Out-Null
 Write-Host "Attente demarrage MySQL/Redis (10s)..." -ForegroundColor Gray
 Start-Sleep -Seconds 10
 
-# 2. Tunnels Cloudflare en premier pour connaitre les URLs publiques
+# 2. Tunnels Cloudflare
 Write-Host "Demarrage tunnels Cloudflare..." -ForegroundColor Yellow
+Stop-Process -Name "cloudflared" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 1
 Start-Process -FilePath $CLOUDFLARED -ArgumentList "tunnel --url http://localhost:25565" -RedirectStandardError "$env:TEMP\tunnel1.txt" -WindowStyle Hidden
 Start-Process -FilePath $CLOUDFLARED -ArgumentList "tunnel --url http://localhost:25566" -RedirectStandardError "$env:TEMP\tunnel2.txt" -WindowStyle Hidden
 Start-Process -FilePath $CLOUDFLARED -ArgumentList "tunnel --url http://localhost:25569" -RedirectStandardError "$env:TEMP\tunnel3.txt" -WindowStyle Hidden
@@ -52,19 +48,17 @@ if (-not $url1 -or -not $url2 -or -not $url3) {
 
 Write-Host ""
 Write-Host "=== URLs des tunnels ===" -ForegroundColor Green
-Write-Host "VITE_MAIN_API           = $url1" -ForegroundColor White
-Write-Host "VITE_WATCHPARTY_API     = $url2" -ForegroundColor White
-Write-Host "VITE_PROXIES_EMBED_API  = $url3" -ForegroundColor White
+Write-Host "MAIN API   = $url1" -ForegroundColor White
+Write-Host "WATCHPARTY = $url2" -ForegroundColor White
+Write-Host "PROXY      = $url3" -ForegroundColor White
 Write-Host ""
 
-# 4. Mettre a jour PROXY_BASE dans le .env Python avec l'URL publique du tunnel
-Write-Host "Mise a jour PROXY_BASE dans .env Python..." -ForegroundColor Yellow
+# 4. Mettre a jour PROXY_BASE dans le .env Python
 $envContent = Get-Content $PYTHON_ENV -Raw
 $envContent = $envContent -replace 'PROXY_BASE=.*', "PROXY_BASE=$url3"
 Set-Content -Path $PYTHON_ENV -Value $envContent.TrimEnd() -Encoding UTF8
-Write-Host "PROXY_BASE = $url3" -ForegroundColor Green
 
-# 5. Demarrage des services (apres mise a jour .env)
+# 5. Demarrage des services
 Write-Host "Demarrage API principale..." -ForegroundColor Yellow
 Start-Process -FilePath "node" -ArgumentList "server.js" -WorkingDirectory "$ROOT\API\Mainapi" -WindowStyle Hidden
 
@@ -74,60 +68,66 @@ Start-Process -FilePath "node" -ArgumentList "watchparty.js" -WorkingDirectory "
 Write-Host "Demarrage proxy Python..." -ForegroundColor Yellow
 Start-Process -FilePath "python" -ArgumentList "server.py" -WorkingDirectory "$ROOT\API\proxiesembed" -WindowStyle Hidden
 
-Write-Host "Attente demarrage services (8s)..." -ForegroundColor Gray
-Start-Sleep -Seconds 8
+Write-Host "Attente demarrage services (10s)..." -ForegroundColor Gray
+Start-Sleep -Seconds 10
 
-# 5b. Purge cache AnimeSama au demarrage (force un re-scrape frais)
+# 5b. Purge cache AnimeSama
 Write-Host "Purge cache AnimeSama..." -ForegroundColor Yellow
 try {
     $purge = Invoke-RestMethod -Uri "http://localhost:25565/anime/purge-all" -Method Get -TimeoutSec 10
     Write-Host "Cache anime purge: $($purge.purged.disk) fichiers" -ForegroundColor Green
 } catch {
-    Write-Host "Purge cache anime echouee (non bloquant): $_" -ForegroundColor DarkYellow
+    Write-Host "Purge cache anime echouee (non bloquant)" -ForegroundColor DarkYellow
 }
 
-# 6. Mise a jour Cloudflare Pages
+# 6. Mise a jour Cloudflare Pages (automatique)
 Write-Host "Mise a jour Cloudflare Pages..." -ForegroundColor Yellow
-
-$headers = @{
-    "Authorization" = "Bearer $CF_API_TOKEN"
-    "Content-Type"  = "application/json"
-}
-
-$body = @{
-    deployment_configs = @{
-        production = @{
-            env_vars = @{
-                VITE_MAIN_API           = @{ value = $url1 }
-                VITE_WATCHPARTY_API     = @{ value = $url2 }
-                VITE_PROXY_BASE_URL     = @{ value = $url3 }
-                VITE_PROXIES_EMBED_API  = @{ value = $url3 }
-                VITE_API_PROXY_BASE_URL = @{ value = $url3 }
-            }
-        }
-    }
-} | ConvertTo-Json -Depth 6
+$headers = @{ "Authorization" = "Bearer $CF_API_TOKEN"; "Content-Type" = "application/json" }
+$body = @{ deployment_configs = @{ production = @{ env_vars = @{
+    VITE_MAIN_API           = @{ value = $url1 }
+    VITE_WATCHPARTY_API     = @{ value = $url2 }
+    VITE_PROXY_BASE_URL     = @{ value = $url3 }
+    VITE_PROXIES_EMBED_API  = @{ value = $url3 }
+    VITE_API_PROXY_BASE_URL = @{ value = $url3 }
+}}}} | ConvertTo-Json -Depth 6
 
 try {
     $patch = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/$CF_PROJECT" -Method Patch -Headers $headers -Body $body
     if ($patch.success) {
         Write-Host "Variables CF mises a jour OK" -ForegroundColor Green
-
         $deploy = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/$CF_PROJECT/deployments" -Method Post -Headers $headers -Body "{}"
         if ($deploy.success) {
-            Write-Host "Re-deploy declenche OK (attendre ~2-3 min)" -ForegroundColor Green
-            Write-Host "Suivi: https://dash.cloudflare.com/$CF_ACCOUNT_ID/pages/view/$CF_PROJECT" -ForegroundColor Cyan
-        } else {
-            Write-Host "Erreur re-deploy: $($deploy.errors | ConvertTo-Json)" -ForegroundColor Red
+            Write-Host "Re-deploy declenche (attendre 2-3 min pour le site)" -ForegroundColor Green
         }
     } else {
-        Write-Host "Erreur update CF: $($patch.errors | ConvertTo-Json)" -ForegroundColor Red
+        Write-Host "Erreur CF Pages: $($patch.errors | ConvertTo-Json)" -ForegroundColor Red
     }
 } catch {
-    Write-Host "Erreur API CF: $_" -ForegroundColor Red
+    Write-Host "Erreur CF Pages: $_" -ForegroundColor Red
 }
+
+# 7. Mise a jour Kodi (plugin.video.lkstv)
+Write-Host "Mise a jour Kodi..." -ForegroundColor Yellow
+$kodiPy = "$ROOT\kodi\plugin.video.lkstv\default.py"
+$kodiContent = Get-Content $kodiPy -Raw
+$kodiContent = $kodiContent -replace "API_BASE = '.*'", "API_BASE = '$url1'"
+Set-Content -Path $kodiPy -Value $kodiContent.TrimEnd() -Encoding UTF8
+
+# Repackage le zip
+python -c "
+import zipfile, os, shutil
+d = r'$ROOT\kodi\plugin.video.lkstv'
+z = r'$ROOT\kodi\plugin.video.lkstv.zip'
+with zipfile.ZipFile(z, 'w', zipfile.ZIP_DEFLATED) as zf:
+    for f in ['addon.xml', 'default.py']:
+        zf.write(os.path.join(d, f), 'plugin.video.lkstv/' + f)
+shutil.copy(z, r'C:\Users\ruben\Desktop\plugin.video.lkstv.zip')
+" 2>$null
+Write-Host "Kodi zip mis a jour sur le bureau" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "=== Tous les services sont demarres ===" -ForegroundColor Green
+Write-Host "Le site sera mis a jour dans ~2-3 min" -ForegroundColor Yellow
+Write-Host ""
 
 Read-Host "Appuie sur Entree pour fermer cette fenetre"
