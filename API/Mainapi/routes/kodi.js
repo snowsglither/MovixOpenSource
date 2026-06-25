@@ -15,11 +15,81 @@ const axios = require('axios');
 let TMDB_API_KEY = '';
 let TMDB_URL = 'https://api.themoviedb.org/3';
 let INTERNAL_BASE = 'http://localhost:25565';
+let PROXY_BASE = 'http://localhost:25569';
 
 function configure(deps) {
   if (deps.TMDB_API_KEY) TMDB_API_KEY = deps.TMDB_API_KEY;
   if (deps.TMDB_API_URL) TMDB_URL = deps.TMDB_API_URL;
   if (deps.INTERNAL_BASE) INTERNAL_BASE = deps.INTERNAL_BASE;
+  if (deps.PROXY_BASE) PROXY_BASE = deps.PROXY_BASE;
+}
+
+// Extracteurs embed → m3u8 direct via le proxy Python
+const EXTRACTORS = {
+  'fsvid.lol':        (url) => `${PROXY_BASE}/api/extract-fsvid?url=${encodeURIComponent(url)}`,
+  'vidzy.org':        (url) => `${PROXY_BASE}/api/extract-vidzy?url=${encodeURIComponent(url)}`,
+  'uqload.is':        (url) => `${PROXY_BASE}/api/extract-uqload?url=${encodeURIComponent(url)}`,
+  'uqload.co':        (url) => `${PROXY_BASE}/api/extract-uqload?url=${encodeURIComponent(url)}`,
+  'doodstream.com':   (url) => `${PROXY_BASE}/api/extract-doodstream?url=${encodeURIComponent(url)}`,
+  'ds2play.com':      (url) => `${PROXY_BASE}/api/extract-doodstream?url=${encodeURIComponent(url)}`,
+  'vidmoly.to':       (url) => `${PROXY_BASE}/api/extract-vidmoly?url=${encodeURIComponent(url)}`,
+};
+
+function getExtractor(embedUrl) {
+  try {
+    const host = new URL(embedUrl).hostname.replace(/^www\./, '');
+    for (const [domain, fn] of Object.entries(EXTRACTORS)) {
+      if (host.includes(domain)) return fn;
+    }
+  } catch {}
+  return null;
+}
+
+async function extractStream(embedUrl, label) {
+  const fn = getExtractor(embedUrl);
+  if (!fn) return null;
+  try {
+    const r = await axios.get(fn(embedUrl), { timeout: 15000 });
+    const m3u8 = r.data?.m3u8Url || r.data?.url;
+    if (!m3u8) return null;
+    return { url: m3u8, label, format: 'hls' };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveStreamsFromFstream(tmdbId, type, season, episode) {
+  try {
+    let fstreamUrl;
+    if (type === 'tv') {
+      fstreamUrl = `${INTERNAL_BASE}/api/fstream/tv/${tmdbId}/season/${season}`;
+    } else {
+      fstreamUrl = `${INTERNAL_BASE}/api/fstream/movie/${tmdbId}`;
+    }
+    const r = await axios.get(fstreamUrl, { timeout: 15000 });
+    const data = r.data;
+    if (!data?.success) return [];
+
+    // Rassemble tous les players (VFQ, VF, VOSTFR, etc.)
+    const players = data.players || {};
+    const embedList = [];
+    for (const [lang, sources] of Object.entries(players)) {
+      for (const src of (sources || [])) {
+        if (src.url) embedList.push({ url: src.url, label: `${src.player || 'Stream'} ${lang}` });
+      }
+    }
+
+    // Pour les séries, filtre par épisode si nécessaire
+    // (fstream TV retourne les sources de la saison, pas par épisode directement)
+
+    // Essaie d'extraire jusqu'à 3 streams en parallèle
+    const candidates = embedList.slice(0, 6);
+    const results = await Promise.all(candidates.map(e => extractStream(e.url, e.label)));
+    return results.filter(Boolean);
+  } catch (err) {
+    console.error('[Kodi] fstream resolve error:', err.message);
+    return [];
+  }
 }
 
 router.use((req, res, next) => {
@@ -134,28 +204,56 @@ router.get('/episodes/:tmdbId/:season', async (req, res) => {
 router.get('/stream', async (req, res) => {
   try {
     const { type, tmdb_id, season, episode } = req.query;
-    let url, data;
 
-    if (type === 'tv') {
-      url = `${INTERNAL_BASE}/api/purstream/tv/${tmdb_id}/stream`;
-      const r = await axios.get(url, { params: { season, episode }, timeout: 20000 });
-      data = r.data;
-    } else {
-      url = `${INTERNAL_BASE}/api/purstream/movie/${tmdb_id}/stream`;
-      const r = await axios.get(url, { timeout: 20000 });
-      data = r.data;
-    }
+    // 1. Essaie PurStream (URLs directes, le plus rapide)
+    try {
+      let purstreamUrl;
+      let purstreamData;
+      if (type === 'tv') {
+        purstreamUrl = `${INTERNAL_BASE}/api/purstream/tv/${tmdb_id}/stream`;
+        const r = await axios.get(purstreamUrl, { params: { season, episode }, timeout: 8000 });
+        purstreamData = r.data;
+      } else {
+        purstreamUrl = `${INTERNAL_BASE}/api/purstream/movie/${tmdb_id}/stream`;
+        const r = await axios.get(purstreamUrl, { timeout: 8000 });
+        purstreamData = r.data;
+      }
+      if (purstreamData?.sources?.length > 0) {
+        const streams = purstreamData.sources.map(s => ({ url: s.url, label: s.name || 'PurStream', format: s.format || 'hls' }));
+        return res.json({ streams });
+      }
+    } catch { /* PurStream indispo, on continue */ }
 
-    const streams = (data.sources || []).map(s => ({
-      url: s.url,
-      label: s.name || 'Stream',
-      format: s.format || 'hls',
-    }));
-
+    // 2. Fallback : FStream + extraction proxy Python
+    const streams = await resolveStreamsFromFstream(tmdb_id, type, season, episode);
     res.json({ streams });
   } catch (err) {
     console.error('[Kodi] stream error:', err.message);
     res.json({ streams: [] });
+  }
+});
+
+// ── Search ─────────────────────────────────────────────────────────────────
+router.get('/search', async (req, res) => {
+  try {
+    const { q, type } = req.query;
+    if (!q) return res.json({ items: [] });
+    const tmdbType = type === 'tv' ? 'tv' : type === 'both' ? null : (type || null);
+    let results = [];
+
+    if (!tmdbType || tmdbType === 'multi') {
+      const data = await tmdb('/search/multi', { query: q });
+      results = (data.results || []).filter(i => i.media_type === 'movie' || i.media_type === 'tv');
+      results = results.map(i => formatItem(i, i.media_type));
+    } else {
+      const data = await tmdb(`/search/${tmdbType}`, { query: q });
+      results = (data.results || []).map(i => formatItem(i, tmdbType));
+    }
+
+    res.json({ items: results.slice(0, 30) });
+  } catch (err) {
+    console.error('[Kodi] search error:', err.message);
+    res.json({ items: [] });
   }
 });
 

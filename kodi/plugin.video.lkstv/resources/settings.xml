@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<settings version="2">
-  <section id="general">
-    <setting id="api_base" type="string" label="URL API LKS TV" default="https://before-claimed-enrollment-stories.trycloudflare.com"/>
-    <setting id="page_size" type="number" label="Éléments par page" default="20" minimum="10" maximum="50" step="10"/>
-  </section>
-</settings>

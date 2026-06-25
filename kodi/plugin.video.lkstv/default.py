@@ -4,56 +4,56 @@ import json
 import xbmc
 import xbmcgui
 import xbmcplugin
-import xbmcaddon
 
-try:
-    from urllib.parse import urlencode, parse_qsl, quote_plus
-    import urllib.request as urllib2
-except ImportError:
-    from urllib import urlencode, quote_plus
-    import urllib2
+from urllib.parse import urlencode, parse_qsl
+import urllib.request as urllib2
 
-ADDON = xbmcaddon.Addon()
 HANDLE = int(sys.argv[1])
 BASE_URL = sys.argv[0]
-
-def get_api_base():
-    return ADDON.getSetting('api_base').rstrip('/')
-
-def api_get(path, params=None):
-    url = get_api_base() + path
-    if params:
-        url += '?' + urlencode(params)
-    req = urllib2.Request(url)
-    req.add_header('User-Agent', 'Kodi/LKS-TV-Addon')
-    response = urllib2.urlopen(req, timeout=20)
-    return json.loads(response.read().decode('utf-8'))
+API_BASE = 'https://before-claimed-enrollment-stories.trycloudflare.com'
 
 def build_url(**kwargs):
     return BASE_URL + '?' + urlencode(kwargs)
 
+def api_get(path, params=None):
+    url = API_BASE + path
+    if params:
+        url += '?' + urlencode(params)
+    req = urllib2.Request(url)
+    req.add_header('User-Agent', 'Kodi/LKS-TV')
+    resp = urllib2.urlopen(req, timeout=20)
+    return json.loads(resp.read().decode('utf-8'))
+
 def root_menu():
     items = [
-        ('Films - Tendances',    'movie', 'trending'),
-        ('Films - Populaires',   'movie', 'popular'),
-        ('Films - Top Rated',    'movie', 'top_rated'),
-        ('Séries - Tendances',   'tv',    'trending'),
-        ('Séries - Populaires',  'tv',    'popular'),
-        ('Séries - Top Rated',   'tv',    'top_rated'),
+        ('🔍 Rechercher',         'search',  None),
+        ('🔥 Films - Tendances',  'catalog_movie', 'trending'),
+        ('🎬 Films - Populaires', 'catalog_movie', 'popular'),
+        ('⭐ Films - Top Rated',  'catalog_movie', 'top_rated'),
+        ('📺 Séries - Tendances', 'catalog_tv',    'trending'),
+        ('🌟 Séries - Populaires','catalog_tv',    'popular'),
+        ('🏆 Séries - Top Rated', 'catalog_tv',    'top_rated'),
     ]
-    for label, media_type, category in items:
+    for label, action, category in items:
         li = xbmcgui.ListItem(label)
         li.setProperty('IsPlayable', 'false')
-        url = build_url(action='catalog', type=media_type, category=category, page=1)
+        if action == 'search':
+            url = build_url(action='search')
+        else:
+            media_type = 'movie' if action == 'catalog_movie' else 'tv'
+            url = build_url(action='catalog', type=media_type, category=category, page=1)
         xbmcplugin.addDirectoryItem(HANDLE, url, li, isFolder=True)
     xbmcplugin.endOfDirectory(HANDLE)
 
-def show_catalog(media_type, category, page):
-    page = int(page)
+def do_search():
+    kb = xbmcgui.Dialog().input('Rechercher un film ou une série', type=xbmcgui.INPUT_ALPHANUM)
+    if not kb:
+        xbmcplugin.endOfDirectory(HANDLE)
+        return
     try:
-        data = api_get('/kodi/catalog', {'type': media_type, 'category': category, 'page': page})
+        data = api_get('/kodi/search', {'q': kb, 'type': 'multi'})
     except Exception as e:
-        xbmcgui.Dialog().notification('LKS TV', 'Erreur chargement: ' + str(e), xbmcgui.NOTIFICATION_ERROR)
+        xbmcgui.Dialog().notification('LKS TV', str(e), xbmcgui.NOTIFICATION_ERROR)
         xbmcplugin.endOfDirectory(HANDLE)
         return
 
@@ -61,23 +61,40 @@ def show_catalog(media_type, category, page):
         tmdb_id = item.get('tmdb_id')
         title = item.get('title', '')
         year = item.get('year', '')
-        poster = item.get('poster', '')
-        fanart = item.get('fanart', '')
-        overview = item.get('overview', '')
-        rating = item.get('rating', 0)
-
-        label = u'{} ({})'.format(title, year) if year else title
+        media_type = item.get('type', 'movie')
+        label = '{} ({}) [{}]'.format(title, year, 'Film' if media_type == 'movie' else 'Série')
         li = xbmcgui.ListItem(label)
+        li.setInfo('video', {'title': title, 'year': int(year) if year and year.isdigit() else 0, 'plot': item.get('overview', ''), 'mediatype': 'movie' if media_type == 'movie' else 'tvshow'})
+        li.setArt({'poster': item.get('poster', ''), 'fanart': item.get('fanart', '')})
 
-        info = {
-            'title': title,
-            'year': int(year) if year and year.isdigit() else 0,
-            'plot': overview,
-            'rating': float(rating),
-            'mediatype': 'movie' if media_type == 'movie' else 'tvshow',
-        }
-        li.setInfo('video', info)
-        li.setArt({'poster': poster, 'fanart': fanart, 'thumb': poster})
+        if media_type == 'movie':
+            li.setProperty('IsPlayable', 'true')
+            url = build_url(action='play_movie', tmdb_id=tmdb_id)
+            xbmcplugin.addDirectoryItem(HANDLE, url, li, isFolder=False)
+        else:
+            li.setProperty('IsPlayable', 'false')
+            url = build_url(action='seasons', tmdb_id=tmdb_id)
+            xbmcplugin.addDirectoryItem(HANDLE, url, li, isFolder=True)
+
+    xbmcplugin.setContent(HANDLE, 'movies')
+    xbmcplugin.endOfDirectory(HANDLE)
+
+def show_catalog(media_type, category, page):
+    try:
+        data = api_get('/kodi/catalog', {'type': media_type, 'category': category, 'page': page})
+    except Exception as e:
+        xbmcgui.Dialog().notification('LKS TV', str(e), xbmcgui.NOTIFICATION_ERROR)
+        xbmcplugin.endOfDirectory(HANDLE)
+        return
+
+    for item in data.get('items', []):
+        tmdb_id = item.get('tmdb_id')
+        title = item.get('title', '')
+        year = item.get('year', '')
+        label = '{} ({})'.format(title, year) if year else title
+        li = xbmcgui.ListItem(label)
+        li.setInfo('video', {'title': title, 'year': int(year) if year and year.isdigit() else 0, 'plot': item.get('overview', ''), 'mediatype': 'movie' if media_type == 'movie' else 'tvshow'})
+        li.setArt({'poster': item.get('poster', ''), 'fanart': item.get('fanart', '')})
 
         if media_type == 'movie':
             li.setProperty('IsPlayable', 'true')
@@ -89,10 +106,10 @@ def show_catalog(media_type, category, page):
             xbmcplugin.addDirectoryItem(HANDLE, url, li, isFolder=True)
 
     total_pages = data.get('total_pages', 1)
-    if page < total_pages:
-        li_next = xbmcgui.ListItem(u'Page suivante >')
+    if int(page) < total_pages:
+        li_next = xbmcgui.ListItem('Page suivante >')
         li_next.setProperty('IsPlayable', 'false')
-        url = build_url(action='catalog', type=media_type, category=category, page=page + 1)
+        url = build_url(action='catalog', type=media_type, category=category, page=int(page)+1)
         xbmcplugin.addDirectoryItem(HANDLE, url, li_next, isFolder=True)
 
     xbmcplugin.setContent(HANDLE, 'movies' if media_type == 'movie' else 'tvshows')
@@ -102,24 +119,17 @@ def show_seasons(tmdb_id):
     try:
         data = api_get('/kodi/seasons/{}'.format(tmdb_id))
     except Exception as e:
-        xbmcgui.Dialog().notification('LKS TV', 'Erreur saisons: ' + str(e), xbmcgui.NOTIFICATION_ERROR)
+        xbmcgui.Dialog().notification('LKS TV', str(e), xbmcgui.NOTIFICATION_ERROR)
         xbmcplugin.endOfDirectory(HANDLE)
         return
 
-    show_title = data.get('show_title', '')
-    for season in data.get('seasons', []):
-        s_num = season.get('season_number')
-        s_name = season.get('name', u'Saison {}'.format(s_num))
-        s_poster = season.get('poster', '')
-        ep_count = season.get('episode_count', 0)
-        overview = season.get('overview', '')
-
-        label = u'{} ({} épisodes)'.format(s_name, ep_count)
+    for s in data.get('seasons', []):
+        s_num = s.get('season_number')
+        label = s.get('name', 'Saison {}'.format(s_num))
         li = xbmcgui.ListItem(label)
-        li.setInfo('video', {'title': s_name, 'plot': overview, 'mediatype': 'season', 'season': s_num, 'tvshowtitle': show_title})
-        li.setArt({'poster': s_poster, 'thumb': s_poster})
+        li.setInfo('video', {'mediatype': 'season', 'season': s_num})
+        li.setArt({'poster': s.get('poster', '')})
         li.setProperty('IsPlayable', 'false')
-
         url = build_url(action='episodes', tmdb_id=tmdb_id, season=s_num)
         xbmcplugin.addDirectoryItem(HANDLE, url, li, isFolder=True)
 
@@ -130,31 +140,18 @@ def show_episodes(tmdb_id, season):
     try:
         data = api_get('/kodi/episodes/{}/{}'.format(tmdb_id, season))
     except Exception as e:
-        xbmcgui.Dialog().notification('LKS TV', 'Erreur épisodes: ' + str(e), xbmcgui.NOTIFICATION_ERROR)
+        xbmcgui.Dialog().notification('LKS TV', str(e), xbmcgui.NOTIFICATION_ERROR)
         xbmcplugin.endOfDirectory(HANDLE)
         return
 
     for ep in data.get('episodes', []):
         ep_num = ep.get('episode_number')
-        title = ep.get('title', u'Épisode {}'.format(ep_num))
-        overview = ep.get('overview', '')
-        thumb = ep.get('thumbnail', '')
-        rating = ep.get('rating', 0)
-
-        label = u'S{}E{} - {}'.format(str(season).zfill(2), str(ep_num).zfill(2), title)
+        title = ep.get('title', 'Episode {}'.format(ep_num))
+        label = 'S{}E{} - {}'.format(str(season).zfill(2), str(ep_num).zfill(2), title)
         li = xbmcgui.ListItem(label)
-        li.setInfo('video', {
-            'title': title,
-            'plot': overview,
-            'rating': float(rating),
-            'episode': ep_num,
-            'season': int(season),
-            'mediatype': 'episode',
-        })
-        if thumb:
-            li.setArt({'thumb': thumb})
+        li.setInfo('video', {'title': title, 'plot': ep.get('overview', ''), 'episode': ep_num, 'season': int(season), 'mediatype': 'episode'})
+        li.setArt({'thumb': ep.get('thumbnail', '')})
         li.setProperty('IsPlayable', 'true')
-
         url = build_url(action='play_tv', tmdb_id=tmdb_id, season=season, episode=ep_num)
         xbmcplugin.addDirectoryItem(HANDLE, url, li, isFolder=False)
 
@@ -162,50 +159,39 @@ def show_episodes(tmdb_id, season):
     xbmcplugin.endOfDirectory(HANDLE)
 
 def play_stream(params):
-    xbmcgui.Dialog().notification('LKS TV', 'Recherche du stream...', xbmcgui.NOTIFICATION_INFO, 3000)
     try:
         data = api_get('/kodi/stream', params)
     except Exception as e:
-        xbmcgui.Dialog().notification('LKS TV', 'Erreur stream: ' + str(e), xbmcgui.NOTIFICATION_ERROR)
+        xbmcgui.Dialog().notification('LKS TV', str(e), xbmcgui.NOTIFICATION_ERROR)
         return
 
     streams = data.get('streams', [])
     if not streams:
-        xbmcgui.Dialog().notification('LKS TV', 'Aucun stream disponible', xbmcgui.NOTIFICATION_WARNING)
+        xbmcgui.Dialog().notification('LKS TV', 'Aucun stream dispo', xbmcgui.NOTIFICATION_WARNING)
         return
 
-    if len(streams) == 1:
-        stream = streams[0]
-    else:
-        labels = [s.get('label', 'Stream {}'.format(i+1)) for i, s in enumerate(streams)]
-        idx = xbmcgui.Dialog().select('Choisir une qualité', labels)
-        if idx < 0:
-            return
-        stream = streams[idx]
+    stream = streams[0]
+    if len(streams) > 1:
+        idx = xbmcgui.Dialog().select('Qualite', [s.get('label', 'Stream') for s in streams])
+        if idx >= 0:
+            stream = streams[idx]
 
     url = stream.get('url', '')
-    fmt = stream.get('format', 'hls')
     li = xbmcgui.ListItem(path=url)
-
-    if fmt == 'hls' or url.endswith('.m3u8'):
+    if '.m3u8' in url or stream.get('format') == 'hls':
         li.setMimeType('application/x-mpegURL')
         li.setContentLookup(False)
         li.setProperty('inputstream', 'inputstream.adaptive')
         li.setProperty('inputstream.adaptive.manifest_type', 'hls')
-    elif url.endswith('.mpd'):
-        li.setMimeType('application/dash+xml')
-        li.setContentLookup(False)
-        li.setProperty('inputstream', 'inputstream.adaptive')
-        li.setProperty('inputstream.adaptive.manifest_type', 'mpd')
-
     xbmcplugin.setResolvedUrl(HANDLE, True, li)
 
 def router():
     args = dict(parse_qsl(sys.argv[2].lstrip('?')))
     action = args.get('action')
-
     if not action:
         root_menu()
+    elif action == 'search':
+        do_search()
     elif action == 'catalog':
         show_catalog(args.get('type', 'movie'), args.get('category', 'trending'), args.get('page', 1))
     elif action == 'seasons':

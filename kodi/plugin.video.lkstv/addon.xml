@@ -1,23 +1,20 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.lkstv"
-       name="LKS TV"
-       version="1.0.0"
-       provider-name="LKS TV">
-
+<addon id="plugin.video.lkstv" name="LKS TV" version="1.0.0" provider-name="LKS TV">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
-    <import addon="xbmc.gui" version="5.14.0"/>
   </requires>
-
   <extension point="xbmc.python.pluginsource" library="default.py">
     <provides>video</provides>
   </extension>
-
   <extension point="xbmc.addon.metadata">
-    <summary lang="fr">Films et séries en streaming sur LKS TV</summary>
-    <description lang="fr">Accède à tous les films et séries disponibles sur LKS TV directement depuis Kodi. Propulsé par PurStream.</description>
+    <summary lang="fr">LKS TV</summary>
+    <description lang="fr">Films et series LKS TV</description>
     <platform>all</platform>
     <license>CC BY-NC 4.0</license>
+    <forum></forum>
+    <website></website>
+    <email></email>
+    <source></source>
+    <news></news>
   </extension>
-
 </addon>
