@@ -1551,6 +1551,9 @@ const DefaultProfileNudge: React.FC = () => {
 // Vérifie d'abord que l'utilisateur est connecté : sans token, on laisse passer
 // pour que PrivateRoute prenne le relais et redirige vers /login.
 const LocalProfileGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  const isWatchRoute = location.pathname.startsWith('/watch/');
+
   const [chosen, setChosen] = React.useState<boolean>(
     () => {
       try {
@@ -1569,6 +1572,19 @@ const LocalProfileGate: React.FC<{ children: React.ReactNode }> = ({ children })
     window.addEventListener('lkstv_reset_profile', handler);
     return () => window.removeEventListener('lkstv_reset_profile', handler);
   }, []);
+
+  // Sur les routes /watch/, auto-sélectionne le dernier profil utilisé depuis localStorage
+  React.useEffect(() => {
+    if (isWatchRoute && !chosen) {
+      try {
+        const lastProfile = localStorage.getItem('lkstv_last_profile');
+        if (lastProfile) {
+          sessionStorage.setItem(LOCAL_PROFILE_KEY, lastProfile);
+          setChosen(true);
+        }
+      } catch { /* ignore */ }
+    }
+  }, [isWatchRoute, chosen]);
 
   React.useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -1596,7 +1612,8 @@ const LocalProfileGate: React.FC<{ children: React.ReactNode }> = ({ children })
 
   const hasToken = !!localStorage.getItem('auth_token');
 
-  if (!chosen && hasToken) {
+  // Sur les routes /watch/, ne jamais bloquer avec le ProfileSelector
+  if (!chosen && hasToken && !isWatchRoute) {
     return <ProfileSelector onSelect={() => setChosen(true)} />;
   }
 

@@ -168,6 +168,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onSelect }) => {
     setSelected(profile.id);
     setActiveProfile(profile);
     localStorage.setItem('is_vip', 'true');
+    localStorage.setItem('lkstv_last_profile', JSON.stringify(profile));
     window.dispatchEvent(new CustomEvent('vipStatusChanged', { detail: { vip: true } }));
     setTimeout(() => onSelect(profile.id), 400);
   };
