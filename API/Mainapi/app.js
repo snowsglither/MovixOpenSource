@@ -524,6 +524,14 @@ purstreamRouter.configure({
 });
 app.use("/api/purstream", purstreamRouter);
 
+const stremioAddon = require('./routes/stremio');
+stremioAddon.configure({
+  TMDB_API_KEY,
+  TMDB_API_URL,
+  INTERNAL_BASE: `http://localhost:${process.env.PORT || 25565}`,
+});
+app.use('/stremio', stremioAddon.router);
+
 const downloadLinksLeaderboardRouter = require('./routes/downloadLinksLeaderboard');
 app.use('/api/download-links', downloadLinksLeaderboardRouter);
 
