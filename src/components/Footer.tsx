@@ -241,21 +241,15 @@ const Footer: React.FC = () => {
         {/* Ligne de séparation */}
         <div className="border-t border-gray-800 pt-6">
           <div className="text-center text-sm text-gray-500">
-            <p>© {new Date().getFullYear()} LKS TV. {t('footer.allRightsReserved')}</p>
+            <p>© {new Date().getFullYear()} LKS TV — Tous droits réservés.</p>
             <p className="mt-1">
-              {t('footer.madeWith')} ❤️ {t('footer.by')}{" "}
-              <a
-                href="https://t.me/LKSTV_site"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-indigo-400 hover:text-indigo-300 transition-colors duration-200"
-              >
-                @mysticsaba
-              </a>
-              {" - " + t('footer.startedAt14')}
+              Créé par{" "}
+              <span className="text-white font-medium">Ruben Lukusa</span>
+              {" "}& son acolyte{" "}
+              <span className="text-white font-medium">Claude</span>.
             </p>
-            <p className="mt-2">
-              <span className="shiny-text">✨ {t('footer.vibeCoded')} ✨</span>
+            <p className="mt-1 text-gray-600 text-xs italic">
+              Et si t'es pas content, on saute ton compte.
             </p>
           </div>
         </div>
