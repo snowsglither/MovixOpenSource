@@ -12,7 +12,7 @@ const fsp = require("fs").promises;
 const crypto = require("crypto");
 const cheerio = require("cheerio");
 const { SocksProxyAgent } = require("socks-proxy-agent");
-const { verifyAccessKey, requireVip } = require("./checkVip");
+const { verifyAccessKey, requireVip, isLocalAuthRequest } = require("./checkVip");
 const {
   DADDYLIVE_BASE_URL,
   DADDYLIVE_REFERER,
@@ -4688,7 +4688,9 @@ router.get("/stream/:type/:channelId", async (req, res) => {
     const accessKey = req.headers["x-access-key"];
 
     let isVip = { vip: false };
-    if (accessKey) {
+    if (isLocalAuthRequest(req)) {
+      isVip = { vip: true, expiresAt: null, duration: null };
+    } else if (accessKey) {
       isVip = await verifyAccessKey(accessKey);
     }
 

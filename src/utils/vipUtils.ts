@@ -43,11 +43,12 @@ export function isUserVip(): boolean {
  * Retourne les headers à inclure dans les requêtes API pour la vérification VIP côté serveur.
  */
 export function getVipHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
   const accessKey = getAccessKey();
-  if (accessKey) {
-    return { 'x-access-key': accessKey };
-  }
-  return {};
+  if (accessKey) headers['x-access-key'] = accessKey;
+  const token = localStorage.getItem('auth_token');
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
 }
 
 let intervalId: ReturnType<typeof setInterval> | null = null;

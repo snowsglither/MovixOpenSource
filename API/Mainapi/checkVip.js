@@ -9,6 +9,20 @@
  */
 
 const { getPool } = require('./mysqlPool');
+const jwt = require('jsonwebtoken');
+
+// Retourne true si la requête a un JWT local valide (compte local = toujours VIP)
+function isLocalAuthRequest(req) {
+  try {
+    const authHeader = req.headers['authorization'] || '';
+    if (!authHeader.startsWith('Bearer ')) return false;
+    const token = authHeader.split(' ')[1];
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    return payload && payload.userType === 'local';
+  } catch {
+    return false;
+  }
+}
 
 // Cache en mémoire pour éviter de spammer MySQL à chaque requête
 // TTL de 5 minutes — si une clé est révoquée, il faut max 5 min pour que ça prenne effet
@@ -121,6 +135,12 @@ async function vipMiddleware(req, res, next) {
  * Usage: router.get('/vip-only-route', requireVip, (req, res) => { ... })
  */
 async function requireVip(req, res, next) {
+    // Compte local = toujours VIP
+    if (isLocalAuthRequest(req)) {
+        req.vipStatus = { vip: true, expiresAt: null, duration: null };
+        return next();
+    }
+
     const accessKey = req.headers['x-access-key'] || null;
     const vipStatus = await verifyAccessKey(accessKey);
     req.vipStatus = vipStatus;
@@ -166,6 +186,7 @@ module.exports = {
     verifyAccessKey,
     vipMiddleware,
     requireVip,
+    isLocalAuthRequest,
     invalidateVipCache,
     invalidateAllVipCache
 };
