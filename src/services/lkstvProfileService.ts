@@ -54,6 +54,7 @@ export function clearActiveProfile(): void {
 // Profile CRUD
 export async function fetchProfiles(): Promise<LKSTVProfile[]> {
   const r = await fetch(`${API}/api/lkstv/profiles`, { headers: authHeaders() });
+  if (r.status === 401) throw new Error('Unauthorized');
   const d = await r.json();
   return d.profiles || [];
 }

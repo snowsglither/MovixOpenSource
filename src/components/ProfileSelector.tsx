@@ -13,14 +13,6 @@ import {
 
 export { LKSTV_PROFILE_KEY as STORAGE_KEY };
 
-const FALLBACK_PROFILES: LKSTVProfile[] = [
-  { id: 'profile-ruben',       name: 'Ruben',       avatar_color: 'bg-blue-600'    },
-  { id: 'profile-glodi',       name: 'Glodi',       avatar_color: 'bg-emerald-600' },
-  { id: 'profile-christopher', name: 'Christopher', avatar_color: 'bg-orange-600'  },
-  { id: 'profile-pauliner',    name: 'Pauliner',    avatar_color: 'bg-pink-600'    },
-  { id: 'profile-parents',     name: 'Parents',     avatar_color: 'bg-indigo-600'  },
-  { id: 'profile-invite',      name: 'Invité',      avatar_color: 'bg-gray-600'    },
-];
 
 const COLOR_PALETTE = [
   'bg-blue-600', 'bg-emerald-600', 'bg-orange-600', 'bg-pink-600',
@@ -157,8 +149,13 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onSelect }) => {
 
   useEffect(() => {
     fetchProfiles()
-      .then((p) => setProfiles(p.length > 0 ? p : FALLBACK_PROFILES))
-      .catch(() => setProfiles(FALLBACK_PROFILES))
+      .then((p) => setProfiles(p))
+      .catch(() => {
+        // 401 ou erreur réseau → token invalide, rediriger vers login
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth');
+        window.location.replace('/login');
+      })
       .finally(() => setLoading(false));
   }, []);
 
