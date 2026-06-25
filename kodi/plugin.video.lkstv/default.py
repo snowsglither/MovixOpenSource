@@ -10,7 +10,7 @@ import urllib.request as urllib2
 
 HANDLE = int(sys.argv[1])
 BASE_URL = sys.argv[0]
-API_BASE = 'https://wow-hats-ceo-amazing.trycloudflare.com'
+API_BASE = 'https://abraham-praise-yours-join.trycloudflare.com'
 
 def build_url(**kwargs):
     return BASE_URL + '?' + urlencode(kwargs)

@@ -1,5 +1,11 @@
 # LKS TV - Démarrage automatique des services + tunnels Cloudflare
 # Lance ce script au démarrage pour tout remettre en ligne
+# Tokens via env vars : $env:CF_API_TOKEN / $env:CF_ACCOUNT_ID
+# ou en paramètre    : .\start-lkstv.ps1 -CfToken "..." -CfAccount "..."
+param(
+  [string]$CfToken   = $env:CF_API_TOKEN,
+  [string]$CfAccount = $env:CF_ACCOUNT_ID
+)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
@@ -8,17 +14,13 @@ $ROOT        = "C:\Users\ruben\Desktop\MovixOpenSource"
 $CLOUDFLARED = "$ROOT\cloudflared.exe"
 $PYTHON_ENV  = "$ROOT\API\proxiesembed\.env"
 
-# === CONFIG CLOUDFLARE ===
-# Définir CF_API_TOKEN et CF_ACCOUNT_ID dans les variables d'environnement Windows
-# ou les passer en paramètre : .\start-lkstv.ps1 -CfToken "..." -CfAccount "..."
-param(
-  [string]$CfToken   = $env:CF_API_TOKEN,
-  [string]$CfAccount = $env:CF_ACCOUNT_ID
-)
-$CF_API_TOKEN  = $CfToken
-$CF_ACCOUNT_ID = $CfAccount
+# Charge les secrets locaux si présents (gitignored)
+$secretsFile = "$PSScriptRoot\secrets.ps1"
+if (Test-Path $secretsFile) { . $secretsFile }
+
+$CF_API_TOKEN  = if ($CfToken)   { $CfToken }   else { $env:CF_API_TOKEN }
+$CF_ACCOUNT_ID = if ($CfAccount) { $CfAccount } else { $env:CF_ACCOUNT_ID }
 $CF_PROJECT    = "lks-tv"
-# =========================
 
 Write-Host "=== LKS TV - Demarrage ===" -ForegroundColor Cyan
 
