@@ -113,7 +113,7 @@ router.post('/login', loginRateLimit, async (req, res) => {
     }
 
     const [rows] = await pool.execute(
-      'SELECT id, username, password_hash, is_active FROM local_accounts WHERE username = ?',
+      'SELECT id, username, password_hash, is_active, max_sessions FROM local_accounts WHERE username = ?',
       [String(username).trim()]
     );
 
@@ -129,6 +129,23 @@ router.post('/login', loginRateLimit, async (req, res) => {
     const valid = await verifyPassword(String(password), account.password_hash);
     if (!valid) {
       return res.status(401).json({ success: false, error: 'Identifiants incorrects' });
+    }
+
+    // Vérifier la limite de sessions actives (actives = vue dans les 15 dernières minutes)
+    const maxSessions = account.max_sessions ?? 2;
+    if (maxSessions > 0) {
+      const [activeSessions] = await pool.execute(
+        `SELECT COUNT(*) as c FROM user_sessions
+         WHERE user_id = ? AND user_type = 'local'
+         AND accessed_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)`,
+        [account.id]
+      );
+      if (activeSessions[0].c >= maxSessions) {
+        return res.status(429).json({
+          success: false,
+          error: `Trop d'appareils connectés (${activeSessions[0].c}/${maxSessions}). Déconnecte un appareil existant.`,
+        });
+      }
     }
 
     const sessionId = await createSession(account.id, req);
@@ -213,16 +230,63 @@ router.post('/create', isAdmin, async (req, res) => {
   }
 });
 
-// GET /api/auth/local/accounts — admin liste les comptes
+// GET /api/auth/local/accounts — admin liste les comptes avec sessions actives
 router.get('/accounts', isAdmin, async (req, res) => {
   try {
     const pool = getPool();
     const [rows] = await pool.execute(
-      'SELECT id, username, is_active, created_at FROM local_accounts ORDER BY created_at ASC'
+      `SELECT la.id, la.username, la.is_active, la.max_sessions, la.created_at,
+        (SELECT COUNT(*) FROM user_sessions us
+         WHERE us.user_id = la.id AND us.user_type = 'local'
+         AND us.accessed_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)) AS active_sessions
+       FROM local_accounts la ORDER BY la.created_at ASC`
     );
     return res.json({ success: true, accounts: rows });
   } catch (err) {
     console.error('[LOCAL AUTH] List accounts error:', err);
+    return res.status(500).json({ success: false, error: 'Erreur serveur' });
+  }
+});
+
+// PUT /api/auth/local/accounts/:id/max-sessions — admin change la limite d'appareils
+router.put('/accounts/:id/max-sessions', isAdmin, async (req, res) => {
+  try {
+    const pool = getPool();
+    const max = parseInt(req.body?.max_sessions, 10);
+    if (isNaN(max) || max < 0 || max > 10) {
+      return res.status(400).json({ success: false, error: 'max_sessions doit être entre 0 et 10 (0 = illimité)' });
+    }
+    await pool.execute('UPDATE local_accounts SET max_sessions = ? WHERE id = ?', [max, req.params.id]);
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/auth/local/accounts/:id/sessions — admin voit les sessions actives d'un compte
+router.get('/accounts/:id/sessions', isAdmin, async (req, res) => {
+  try {
+    const pool = getPool();
+    const [rows] = await pool.execute(
+      `SELECT id, user_agent, created_at, accessed_at,
+        (accessed_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)) AS is_active
+       FROM user_sessions WHERE user_id = ? AND user_type = 'local'
+       ORDER BY accessed_at DESC`,
+      [req.params.id]
+    );
+    return res.json({ success: true, sessions: rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /api/auth/local/sessions/:sessionId — admin kick une session
+router.delete('/sessions/:sessionId', isAdmin, async (req, res) => {
+  try {
+    const pool = getPool();
+    await pool.execute('DELETE FROM user_sessions WHERE id = ?', [req.params.sessionId]);
+    return res.json({ success: true });
+  } catch (err) {
     return res.status(500).json({ success: false, error: 'Erreur serveur' });
   }
 });

@@ -664,6 +664,13 @@ const appReady = (async () => {
         }
       } catch (_) {}
       try {
+        const [maxSessCols] = await pool.execute(`SHOW COLUMNS FROM local_accounts LIKE 'max_sessions'`);
+        if (maxSessCols.length === 0) {
+          await pool.execute(`ALTER TABLE local_accounts ADD COLUMN max_sessions TINYINT UNSIGNED NOT NULL DEFAULT 2`);
+          console.log('Migration local_accounts : ajout de max_sessions');
+        }
+      } catch (_) {}
+      try {
         const [mtCols] = await pool.execute(`SHOW COLUMNS FROM lkstv_history LIKE 'media_type'`);
         if (mtCols.length > 0 && mtCols[0].Type.toLowerCase().includes('enum')) {
           await pool.execute(`ALTER TABLE lkstv_history MODIFY COLUMN media_type VARCHAR(10) NOT NULL`);

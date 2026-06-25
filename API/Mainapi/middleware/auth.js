@@ -171,7 +171,9 @@ async function getAuthIfValid(req) {
         hasSession = rows.length > 0;
 
         if (hasSession) {
-          break; // Session trouvée, sortir de la boucle
+          // Mettre à jour accessed_at (fire-and-forget) pour que le heartbeat soit automatique
+          pool.execute('UPDATE user_sessions SET accessed_at = NOW() WHERE id = ?', [sessionId]).catch(() => {});
+          break;
         }
 
         if (attempt < 3) {

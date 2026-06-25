@@ -34,7 +34,11 @@ const LocalLogin: React.FC = () => {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setError(data.error || 'Identifiants incorrects');
+        if (res.status === 429) {
+          setError(data.error || 'Trop d\'appareils connectés sur ce compte.');
+        } else {
+          setError(data.error || 'Identifiants incorrects');
+        }
         return;
       }
 
