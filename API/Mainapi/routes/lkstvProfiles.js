@@ -1,7 +1,7 @@
 /**
- * LKS TV — Local Profiles CRUD (sans auth JWT).
+ * LKS TV — Local Profiles CRUD (auth JWT requise, profils isolés par compte).
  *
- * GET    /api/lkstv/profiles            → liste tous les profils (has_pin boolean, jamais le pin brut)
+ * GET    /api/lkstv/profiles            → liste les profils du compte connecté
  * POST   /api/lkstv/profiles            → créer un profil (pin optionnel 4 chiffres)
  * PUT    /api/lkstv/profiles/:id        → mettre à jour (pin optionnel)
  * DELETE /api/lkstv/profiles/:id        → supprimer (pin requis dans body si profil protégé)
@@ -12,6 +12,16 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { getPool } = require('../mysqlPool');
+const { getAuthIfValid } = require('../middleware/auth');
+
+async function requireAuth(req, res) {
+  const auth = await getAuthIfValid(req);
+  if (!auth) {
+    res.status(401).json({ error: 'Non authentifié' });
+    return null;
+  }
+  return auth;
+}
 
 function validateName(name) {
   if (typeof name !== 'string') return false;
@@ -30,11 +40,14 @@ function validatePin(pin) {
 }
 
 // GET /api/lkstv/profiles
-router.get('/profiles', async (_req, res) => {
+router.get('/profiles', async (req, res) => {
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
   const pool = getPool();
   try {
     const [rows] = await pool.execute(
-      'SELECT id, name, avatar_color, created_at, (pin_code IS NOT NULL) as has_pin FROM local_profiles ORDER BY created_at ASC'
+      'SELECT id, name, avatar_color, created_at, (pin_code IS NOT NULL) as has_pin FROM local_profiles WHERE account_id = ? ORDER BY created_at ASC',
+      [auth.userId]
     );
     return res.json({ profiles: rows.map(r => ({ ...r, has_pin: !!r.has_pin })) });
   } catch (err) {
@@ -45,6 +58,9 @@ router.get('/profiles', async (_req, res) => {
 
 // POST /api/lkstv/profiles
 router.post('/profiles', async (req, res) => {
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
+
   const { name, avatar_color, pin } = req.body || {};
 
   if (!validateName(name)) {
@@ -65,8 +81,8 @@ router.post('/profiles', async (req, res) => {
 
   try {
     await pool.execute(
-      'INSERT INTO local_profiles (id, name, avatar_color, pin_code) VALUES (?, ?, ?, ?)',
-      [id, trimmedName, trimmedColor, pinCode]
+      'INSERT INTO local_profiles (id, account_id, name, avatar_color, pin_code) VALUES (?, ?, ?, ?, ?)',
+      [id, auth.userId, trimmedName, trimmedColor, pinCode]
     );
     const [rows] = await pool.execute(
       'SELECT id, name, avatar_color, created_at, (pin_code IS NOT NULL) as has_pin FROM local_profiles WHERE id = ?',
@@ -82,6 +98,9 @@ router.post('/profiles', async (req, res) => {
 
 // PUT /api/lkstv/profiles/:id
 router.put('/profiles/:id', async (req, res) => {
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
+
   const { id } = req.params;
   const { name, avatar_color, pin } = req.body || {};
 
@@ -100,7 +119,10 @@ router.put('/profiles/:id', async (req, res) => {
 
   const pool = getPool();
   try {
-    const [existing] = await pool.execute('SELECT id FROM local_profiles WHERE id = ?', [id]);
+    const [existing] = await pool.execute(
+      'SELECT id FROM local_profiles WHERE id = ? AND account_id = ?',
+      [id, auth.userId]
+    );
     if (existing.length === 0) {
       return res.status(404).json({ error: 'Profil introuvable' });
     }
@@ -130,18 +152,25 @@ router.put('/profiles/:id', async (req, res) => {
 
 // DELETE /api/lkstv/profiles/:id
 router.delete('/profiles/:id', async (req, res) => {
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
+
   const { id } = req.params;
   const { pin } = req.body || {};
   const pool = getPool();
 
   try {
-    const [all] = await pool.execute('SELECT id FROM local_profiles');
+    const [all] = await pool.execute(
+      'SELECT id FROM local_profiles WHERE account_id = ?',
+      [auth.userId]
+    );
     if (all.length <= 1) {
       return res.status(400).json({ error: 'Impossible de supprimer le dernier profil' });
     }
 
     const [existing] = await pool.execute(
-      'SELECT id, pin_code FROM local_profiles WHERE id = ?', [id]
+      'SELECT id, pin_code FROM local_profiles WHERE id = ? AND account_id = ?',
+      [id, auth.userId]
     );
     if (existing.length === 0) {
       return res.status(404).json({ error: 'Profil introuvable' });
@@ -164,12 +193,18 @@ router.delete('/profiles/:id', async (req, res) => {
 
 // POST /api/lkstv/profiles/:id/verify-pin
 router.post('/profiles/:id/verify-pin', async (req, res) => {
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
+
   const { id } = req.params;
   const { pin } = req.body || {};
   const pool = getPool();
 
   try {
-    const [rows] = await pool.execute('SELECT pin_code FROM local_profiles WHERE id = ?', [id]);
+    const [rows] = await pool.execute(
+      'SELECT pin_code FROM local_profiles WHERE id = ? AND account_id = ?',
+      [id, auth.userId]
+    );
     if (rows.length === 0) return res.status(404).json({ error: 'Profil introuvable' });
 
     const storedPin = rows[0].pin_code;

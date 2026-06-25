@@ -656,6 +656,14 @@ const appReady = (async () => {
         }
       } catch (_) {}
       try {
+        const [accCols] = await pool.execute(`SHOW COLUMNS FROM local_profiles LIKE 'account_id'`);
+        if (accCols.length === 0) {
+          await pool.execute(`ALTER TABLE local_profiles ADD COLUMN account_id VARCHAR(36) DEFAULT NULL`);
+          await pool.execute(`ALTER TABLE local_profiles ADD INDEX idx_account_id (account_id)`);
+          console.log('Migration local_profiles : ajout de account_id');
+        }
+      } catch (_) {}
+      try {
         const [mtCols] = await pool.execute(`SHOW COLUMNS FROM lkstv_history LIKE 'media_type'`);
         if (mtCols.length > 0 && mtCols[0].Type.toLowerCase().includes('enum')) {
           await pool.execute(`ALTER TABLE lkstv_history MODIFY COLUMN media_type VARCHAR(10) NOT NULL`);

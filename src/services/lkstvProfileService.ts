@@ -1,5 +1,10 @@
 const API = import.meta.env.VITE_MAIN_API;
 
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export interface LKSTVProfile {
   id: string;
   name: string;
@@ -48,14 +53,15 @@ export function clearActiveProfile(): void {
 
 // Profile CRUD
 export async function fetchProfiles(): Promise<LKSTVProfile[]> {
-  const r = await fetch(`${API}/api/lkstv/profiles`);
+  const r = await fetch(`${API}/api/lkstv/profiles`, { headers: authHeaders() });
   const d = await r.json();
   return d.profiles || [];
 }
 
 export async function createProfile(name: string, avatar_color: string, pin?: string): Promise<LKSTVProfile> {
   const r = await fetch(`${API}/api/lkstv/profiles`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ name, avatar_color, ...(pin ? { pin } : {}) })
   });
   const d = await r.json();
@@ -65,9 +71,10 @@ export async function createProfile(name: string, avatar_color: string, pin?: st
 
 export async function updateProfile(id: string, name: string, avatar_color: string, pin?: string): Promise<LKSTVProfile> {
   const body: Record<string, string> = { name, avatar_color };
-  if (pin !== undefined) body.pin = pin; // empty string = remove PIN
+  if (pin !== undefined) body.pin = pin;
   const r = await fetch(`${API}/api/lkstv/profiles/${id}`, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body)
   });
   const d = await r.json();
@@ -78,7 +85,7 @@ export async function updateProfile(id: string, name: string, avatar_color: stri
 export async function deleteProfile(id: string, pin?: string): Promise<void> {
   const r = await fetch(`${API}/api/lkstv/profiles/${id}`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: pin !== undefined ? JSON.stringify({ pin }) : undefined,
   });
   if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Erreur suppression'); }
@@ -87,7 +94,8 @@ export async function deleteProfile(id: string, pin?: string): Promise<void> {
 export async function verifyPin(id: string, pin: string): Promise<boolean> {
   try {
     const r = await fetch(`${API}/api/lkstv/profiles/${id}/verify-pin`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ pin })
     });
     const d = await r.json();
