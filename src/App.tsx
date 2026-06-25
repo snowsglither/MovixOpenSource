@@ -1700,7 +1700,8 @@ const AppWithIntro: React.FC = () => {
     currentPath === '/tv-shows' ||
     currentPath.startsWith('/provider/');
   const isWrappedRoute = currentPath === '/wrapped' || currentPath.startsWith('/wrapped/');
-  const shouldShowHeader = !isWatchRoute && !isWrappedRoute;
+  const isAuthOnlyRoute = currentPath === '/login' || currentPath === '/setup';
+  const shouldShowHeader = !isWatchRoute && !isWrappedRoute && !isAuthOnlyRoute;
   const isAprilFoolsAdminRouteEnabled = isAprilFoolsAdminEnabled(location.search);
   const isNoFooterPage = isWatchRoute;
   React.useEffect(() => {
