@@ -1561,12 +1561,38 @@ const LocalProfileGate: React.FC<{ children: React.ReactNode }> = ({ children })
       } catch { return false; }
     }
   );
+  // true = vérification serveur faite (ou pas nécessaire)
+  const [verified, setVerified] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     const handler = () => setChosen(false);
     window.addEventListener('lkstv_reset_profile', handler);
     return () => window.removeEventListener('lkstv_reset_profile', handler);
   }, []);
+
+  React.useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    // Pas de token ou pas de profil choisi → pas besoin de vérifier côté serveur
+    if (!token || !chosen) { setVerified(true); return; }
+
+    // Profil déjà sélectionné → vérifier que la session est toujours valide
+    fetch(`${API_URL}/api/lkstv/profiles`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => {
+        if (r.status === 401) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth');
+          sessionStorage.removeItem(LOCAL_PROFILE_KEY);
+          window.location.replace('/login');
+        } else {
+          setVerified(true);
+        }
+      })
+      .catch(() => setVerified(true)); // erreur réseau → on laisse entrer (ne pas bloquer hors ligne)
+  }, []); // une seule vérification au montage
+
+  if (!verified) return null;
 
   const hasToken = !!localStorage.getItem('auth_token');
 
