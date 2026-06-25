@@ -1,6 +1,6 @@
 const path = require('path');
 
-const ALLOWED_SYNC_USER_TYPES = Object.freeze(['oauth', 'bip39']);
+const ALLOWED_SYNC_USER_TYPES = Object.freeze(['oauth', 'bip39', 'local']);
 const RESERVED_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 const SAFE_SYNC_KEY_PATTERN = /^[A-Za-z0-9:_-]{1,120}$/;
 const SAFE_USER_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
@@ -391,7 +391,9 @@ function getUserDataFilePath({ usersDir, guestsDir }, userType, userId) {
 
   const safeUserType = ensureValidUserType(userType);
   const safeUserId = ensureSafeUserId(userId);
-  const fileName = safeUserType === 'bip39' ? `bip39-${safeUserId}.json` : `${safeUserId}.json`;
+  const fileName = safeUserType === 'bip39' ? `bip39-${safeUserId}.json`
+    : safeUserType === 'local' ? `local-${safeUserId}.json`
+    : `${safeUserId}.json`;
   return resolveInside(usersDir, fileName);
 }
 

@@ -8,7 +8,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const { getPool } = require('../mysqlPool');
 const { getUserDataFilePath } = require('../utils/syncPolicy');
-const AUTH_METHODS = ['discord', 'google', 'bip39'];
+const AUTH_METHODS = ['discord', 'google', 'bip39', 'local'];
 const USER_DATA_DIR = path.join(__dirname, '..', 'data');
 const GUESTS_DIR = path.join(USER_DATA_DIR, 'guests');
 const USERS_DIR = path.join(USER_DATA_DIR, 'users');
@@ -91,8 +91,22 @@ function hasStoredAccountIdentity(userType, userData) {
 }
 
 async function validateBackingAccount(userType, userId) {
-  if (!['oauth', 'bip39'].includes(userType) || !userId) {
+  if (!['oauth', 'bip39', 'local'].includes(userType) || !userId) {
     return false;
+  }
+
+  if (userType === 'local') {
+    try {
+      const pool = getDbPool();
+      if (!pool) return null;
+      const [rows] = await pool.execute(
+        'SELECT id FROM local_accounts WHERE id = ? AND is_active = 1',
+        [userId]
+      );
+      return rows.length > 0;
+    } catch {
+      return null;
+    }
   }
 
   const userData = await readStoredAccountData(userType, userId);
@@ -132,8 +146,8 @@ async function getAuthIfValid(req) {
     const { userType, sub: userId, sessionId } = payload;
     const authMethod = AUTH_METHODS.includes(payload?.authMethod)
       ? payload.authMethod
-      : (userType === 'bip39' ? 'bip39' : null);
-    if (!['oauth', 'bip39'].includes(userType) || !userId || !sessionId) return null;
+      : (userType === 'bip39' ? 'bip39' : userType === 'local' ? 'local' : null);
+    if (!['oauth', 'bip39', 'local'].includes(userType) || !userId || !sessionId) return null;
 
     // Vérification de session via MySQL avec 3 tentatives
     let hasSession = false;
@@ -237,7 +251,7 @@ async function isAdmin(req, res, next) {
     // Vérifier si l'utilisateur est dans la table admins
     const [rows] = await pool.execute(
       'SELECT * FROM admins WHERE user_id = ? AND auth_type = ?',
-      [userId, userType === 'bip39' ? 'bip-39' : userType]
+      [userId, userType === 'bip39' ? 'bip-39' : userType === 'local' ? 'local' : userType]
     );
 
     if (rows.length === 0) {
@@ -277,7 +291,7 @@ async function isUploaderOrAdmin(req, res, next) {
     // Vérifier si l'utilisateur est dans la table admins (admin ou uploader)
     const [rows] = await pool.execute(
       'SELECT * FROM admins WHERE user_id = ? AND auth_type = ?',
-      [userId, userType === 'bip39' ? 'bip-39' : userType]
+      [userId, userType === 'bip39' ? 'bip-39' : userType === 'local' ? 'local' : userType]
     );
 
     if (rows.length === 0) {

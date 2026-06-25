@@ -495,9 +495,11 @@ app.use('/api', downloadRouter);
 app.use('/api/fstream', require('./routes/fstream'));
 app.use('/api/wiflix', require('./routes/wiflix'));
 app.use('/api', require('./routes/sync'));
-// LKS TV — auth désactivée (réseau local)
-app.use('/api/auth', (_req, res) => res.status(503).json({ error: 'Auth désactivée sur LKS TV local' }));
-app.use('/api/oauth', (_req, res) => res.status(503).json({ error: 'OAuth désactivé sur LKS TV local' }));
+// Auth locale (username + password)
+app.use('/api/auth/local', require('./routes/localAuth'));
+// Routes auth legacy — désactivées
+app.use('/api/auth', (_req, res) => res.status(503).json({ error: 'Utiliser /api/auth/local' }));
+app.use('/api/oauth', (_req, res) => res.status(503).json({ error: 'OAuth désactivé' }));
 app.use('/api/profiles', (_req, res) => res.status(503).json({ error: 'Utiliser /api/lkstv/profiles' }));
 app.use('/api/help', require('./routes/helpFeedback'));
 app.use('/api/admin/oauth-apps', require('./routes/adminOauthApps'));
@@ -558,7 +560,7 @@ const appReady = (async () => {
       CREATE TABLE IF NOT EXISTS user_sessions (
         id VARCHAR(255) PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL,
-        user_type ENUM('oauth', 'bip39') NOT NULL,
+        user_type ENUM('oauth', 'bip39', 'local') NOT NULL,
         user_agent TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -566,6 +568,44 @@ const appReady = (async () => {
         INDEX idx_user_sessions_accessed (accessed_at)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+
+      // Migration : ajouter 'local' à l'ENUM si absent (installations existantes)
+      try {
+        const [colInfo] = await pool.execute(
+          `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_sessions' AND COLUMN_NAME = 'user_type'`
+        );
+        if (colInfo.length > 0 && !colInfo[0].COLUMN_TYPE.includes("'local'")) {
+          await pool.execute(`ALTER TABLE user_sessions MODIFY COLUMN user_type ENUM('oauth', 'bip39', 'local') NOT NULL`);
+          console.log('Migration user_sessions.user_type : ajout de "local"');
+        }
+      } catch (_) {}
+
+      // Table des comptes locaux (username + password)
+      await pool.execute(`
+        CREATE TABLE IF NOT EXISTS local_accounts (
+          id VARCHAR(36) PRIMARY KEY,
+          username VARCHAR(100) NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
+          is_active TINYINT(1) NOT NULL DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY uq_username (username),
+          INDEX idx_is_active (is_active)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+      console.log('Table local_accounts initialisée');
+
+      // Migration : ajouter 'local' à admins.auth_type si absent
+      try {
+        const [admColInfo] = await pool.execute(
+          `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admins' AND COLUMN_NAME = 'auth_type'`
+        );
+        if (admColInfo.length > 0 && !admColInfo[0].COLUMN_TYPE.includes("'local'")) {
+          await pool.execute(`ALTER TABLE admins MODIFY COLUMN auth_type ENUM('oauth', 'bip-39', 'local') NOT NULL`);
+          console.log('Migration admins.auth_type : ajout de "local"');
+        }
+      } catch (_) {}
       console.log("Table user_sessions initialized successfully");
 
       await ensureAccountLinksStorage();
