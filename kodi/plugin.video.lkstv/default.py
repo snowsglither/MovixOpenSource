@@ -10,7 +10,7 @@ import urllib.request as urllib2
 
 HANDLE = int(sys.argv[1])
 BASE_URL = sys.argv[0]
-API_BASE = 'https://ca476422-f7ff-40ec-8010-6a290cc0a74c.cfargotunnel.com'
+API_BASE = 'https://fixed-vital-initiated-restore.trycloudflare.com'
 
 def build_url(**kwargs):
     return BASE_URL + '?' + urlencode(kwargs)

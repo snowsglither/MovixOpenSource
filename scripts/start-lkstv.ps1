@@ -106,22 +106,23 @@ try {
     Write-Host "Erreur CF Pages: $_" -ForegroundColor Red
 }
 
-# 7. Mise a jour Kodi (plugin.video.lkstv)
+# 7. Mise a jour Kodi (plugin.video.lkstv) — Python pour preserver UTF-8
 Write-Host "Mise a jour Kodi..." -ForegroundColor Yellow
-$kodiPy = "$ROOT\kodi\plugin.video.lkstv\default.py"
-$kodiContent = Get-Content $kodiPy -Raw
-$kodiContent = $kodiContent -replace "API_BASE = '.*'", "API_BASE = '$url1'"
-Set-Content -Path $kodiPy -Value $kodiContent.TrimEnd() -Encoding UTF8
-
-# Repackage le zip
 python -c "
-import zipfile, os, shutil
-d = r'$ROOT\kodi\plugin.video.lkstv'
+import re, zipfile, os, shutil
+kodi_py = r'$ROOT\kodi\plugin.video.lkstv\default.py'
+with open(kodi_py, encoding='utf-8') as f:
+    content = f.read()
+content = re.sub(r\"API_BASE = '.*'\", \"API_BASE = '$url1'\", content)
+with open(kodi_py, 'w', encoding='utf-8') as f:
+    f.write(content)
 z = r'$ROOT\kodi\plugin.video.lkstv.zip'
+d = r'$ROOT\kodi\plugin.video.lkstv'
 with zipfile.ZipFile(z, 'w', zipfile.ZIP_DEFLATED) as zf:
-    for f in ['addon.xml', 'default.py']:
-        zf.write(os.path.join(d, f), 'plugin.video.lkstv/' + f)
+    for fname in ['addon.xml', 'default.py']:
+        zf.write(os.path.join(d, fname), 'plugin.video.lkstv/' + fname)
 shutil.copy(z, r'C:\Users\ruben\Desktop\plugin.video.lkstv.zip')
+print('OK')
 " 2>$null
 Write-Host "Kodi zip mis a jour sur le bureau" -ForegroundColor Green
 
