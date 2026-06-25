@@ -11,6 +11,7 @@ import ContentRowSkeleton from '../components/skeletons/ContentRowSkeleton';
 
 import HeroSlider from '../components/HeroSlider';
 import EmblaCarousel from '../components/EmblaCarousel';
+import EmblaCarouselPlatforms from '../components/EmblaCarouselPlatforms';
 import { useWrappedTracker } from '../hooks/useWrappedTracker';
 import LazySection from '../components/LazySection';
 import { SquareBackground } from '../components/ui/square-background';
@@ -946,18 +947,17 @@ const Home: React.FC = () => {
     [t]
   );
 
-const platformsItems = useMemo(() => [
-    { id: 8,   src: "https://u.cubeupload.com/mystic/8df6ce62504c1ab31aab.png",   alt: "Netflix",        route: "/provider/8",   count: 2817 },
-    { id: 119, src: "https://u.cubeupload.com/mystic/b222691607d658c2fa52.png",   alt: "Prime Video",    route: "/provider/119", count: 2799 },
-    { id: 337, src: "https://u.cubeupload.com/mystic/c40fe782c450e170eea6.png",   alt: "Disney+",        route: "/provider/337", count: 1152 },
-    { id: 384, src: "https://image.tmdb.org/t/p/original/Ajqyt5aNxNx9n4b5nHuCVKlSQOd.jpg", alt: "HBO Max", route: "/provider/384", count: 430 },
-    { id: 350, src: "https://u.cubeupload.com/mystic/b2fb6956993e2ee5b4e3.png",   alt: "Apple TV+",     route: "/provider/350", count: 138 },
-    { id: 283, src: "https://image.tmdb.org/t/p/original/8Z5dBWsOXHgFGDhwFOFcpBFnAGm.jpg", alt: "Crunchyroll", route: "/provider/283", count: 950 },
-    { id: 531, src: "https://u.cubeupload.com/mystic/35734306149c1a6eb0a9.png",   alt: "Paramount+",    route: "/provider/531", count: 502 },
-    { id: 355, src: "https://u.cubeupload.com/mystic/ky0xOc5OrhzkZ1N6KyUx.png",  alt: "Warner Bros",   route: "/provider/355", count: 645 },
-    { id: 338, src: "https://u.cubeupload.com/mystic/hUzeosd33nzE5MCNsZxC.png",  alt: "Marvel Studios",route: "/provider/338", count: 65  },
-    { id: 356, src: "https://u.cubeupload.com/mystic/2Tc1P3Ac8M479naPp1kY.png",  alt: "DC Comics",     route: "/provider/356", count: 98  },
-  ], []);
+  const platformsItems = useMemo(() => [
+    { id: 8,   src: "https://u.cubeupload.com/mystic/8df6ce62504c1ab31aab.png",   video: "https://media.tenor.com/hd7jyV_dMS8AAAPo/netflix-media-services-provider.mp4",        alt: "Netflix",        route: "/provider/8",   label: t('home.filmsAndSeries', { count: 2817 }) },
+    { id: 119, src: "https://u.cubeupload.com/mystic/b222691607d658c2fa52.png",   video: "https://media.tenor.com/T7L_NCdPIvAAAAPo/prime-video.mp4",                            alt: "Prime Video",    route: "/provider/119", label: t('home.filmsAndSeries', { count: 2799 }) },
+    { id: 531, src: "https://u.cubeupload.com/mystic/35734306149c1a6eb0a9.png",   video: "https://media4.giphy.com/media/qCEXQzkScYOBIRusVA/giphy.mp4",                         alt: "Paramount+",     route: "/provider/531", label: t('home.filmsAndSeries', { count: 502 }) },
+    { id: 337, src: "https://u.cubeupload.com/mystic/c40fe782c450e170eea6.png",   video: "https://media.tenor.com/h6-0yzk8pbAAAAPo/disney-disney-plus.mp4",                     alt: "Disney+",        route: "/provider/337", label: t('home.filmsAndSeries', { count: 1152 }) },
+    { id: 338, src: "https://u.cubeupload.com/mystic/hUzeosd33nzE5MCNsZxC.png",   video: "https://i.giphy.com/media/vBjLa5DQwwxbi/giphy.mp4",                                   alt: "Marvel Studios", route: "/provider/338", label: t('home.filmsAndSeries', { count: 65 }) },
+    { id: 350, src: "https://u.cubeupload.com/mystic/b2fb6956993e2ee5b4e3.png",   video: "https://media.tenor.com/Oxl9xEn7kTEAAAPo/applo-tv.mp4",                              alt: "Apple TV+",      route: "/provider/350", label: t('home.filmsAndSeries', { count: 138 }) },
+    { id: 355, src: "https://u.cubeupload.com/mystic/ky0xOc5OrhzkZ1N6KyUx.png",  video: "https://i.giphy.com/media/3o7TKt3pMpzozdUsus/giphy.mp4",                              alt: "Warner Bros",    route: "/provider/355", label: t('home.filmsAndSeries', { count: 645 }) },
+    { id: 356, src: "https://u.cubeupload.com/mystic/2Tc1P3Ac8M479naPp1kY.png",  video: "https://media.tenor.com/ag74wyAzYkMAAAPo/dc-comics-dceu.mp4",                         alt: "DC Comics",      route: "/provider/356", label: t('home.filmsAndSeries', { count: 98 }) },
+    { id: 384, src: "https://image.tmdb.org/t/p/original/Ajqyt5aNxNx9n4b5nHuCVKlSQOd.jpg", video: "https://media.tenor.com/7xmvr-fKGLMAAAAd/hbo-max-warner-bros-pictures.gif", alt: "HBO Max",        route: "/provider/384", label: "HBO Max" },
+  ], [t]);
 
   if (loading) {
     return (
@@ -991,38 +991,25 @@ const platformsItems = useMemo(() => [
           </motion.div>
         ) : (
           <>
-            {/* ── Plateformes de streaming ── */}
-            <div className="pt-20 md:pt-24 px-4 md:px-8 pb-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-white text-lg font-semibold">Plateformes</h2>
-                <Link to="/provider/8" className="text-blue-400 text-sm hover:text-blue-300 transition-colors">Voir tout →</Link>
-              </div>
-              <div className="grid grid-cols-5 sm:grid-cols-5 md:grid-cols-10 gap-3">
-                {platformsItems.map((p) => (
-                  <Link
-                    key={p.id}
-                    to={p.route}
-                    className="group flex flex-col items-center gap-2"
-                  >
-                    <div className="w-full aspect-square rounded-2xl bg-[#13131f] border border-white/8 flex items-center justify-center p-3 transition-all duration-200 group-hover:border-blue-500/40 group-hover:bg-[#1a1a2e] group-hover:scale-105">
-                      <img
-                        src={p.src}
-                        alt={p.alt}
-                        className="w-full h-full object-contain rounded-xl"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    </div>
-                    <span className="text-gray-400 text-[10px] text-center truncate w-full group-hover:text-white transition-colors">{p.alt}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
             {heroItems.length > 0 && (
-              <div className="relative w-full">
+              <div className="relative w-full pt-16 md:pt-20 lg:pt-24">
                 <HeroSlider items={heroItems} />
               </div>
             )}
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="w-full py-8 relative mb-6 mt-8 z-0 px-4 md:px-8"
+            >
+              <div className="w-full overflow-hidden">
+                <EmblaCarouselPlatforms
+                  title={<CarouselTitle icon="🎬" iconClass="text-white" label={t('home.streamingPlatforms')} />}
+                  items={platformsItems}
+                />
+              </div>
+            </motion.div>
 
             {/* Section "Reprendre votre lecture" - Section prioritaire (index 0) */}
             {continueWatching.length > 0 && (
