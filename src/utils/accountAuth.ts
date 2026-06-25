@@ -1,5 +1,5 @@
-﻿export type AuthMethod = 'discord' | 'google' | 'bip39';
-export type ResolvedUserType = 'oauth' | 'bip39';
+﻿export type AuthMethod = 'discord' | 'google' | 'bip39' | 'local';
+export type ResolvedUserType = 'oauth' | 'bip39' | 'local';
 
 interface StoredUserProfile extends Record<string, unknown> {
   id?: string | number;
@@ -92,14 +92,16 @@ const AUTH_KEYS = [
   'resolved_user_type',
   'resolved_user_id',
   'user_id',
+  'local_auth',
+  'local_username',
 ] as const;
 
 function isAuthMethod(value: string | null): value is AuthMethod {
-  return value === 'discord' || value === 'google' || value === 'bip39';
+  return value === 'discord' || value === 'google' || value === 'bip39' || value === 'local';
 }
 
 function isResolvedUserType(value: string | null): value is ResolvedUserType {
-  return value === 'oauth' || value === 'bip39';
+  return value === 'oauth' || value === 'bip39' || value === 'local';
 }
 
 function isPendingAuthLinkAction(value: PendingAuthAction | null): value is PendingAuthLinkAction {
@@ -240,6 +242,15 @@ function getFallbackAuthProfile(method: AuthMethod, resolvedUserId: string, rawU
     };
   }
 
+  if (method === 'local') {
+    return {
+      id: resolvedUserId,
+      username: rawUser?.username as string || `Utilisateur-${resolvedUserId.slice(0, 8)}`,
+      avatar: DEFAULT_AVATAR,
+      provider: 'local',
+    };
+  }
+
   return {
     id: resolvedUserId,
     username: rawUser?.username || `Utilisateur-${resolvedUserId.slice(0, 8)}`,
@@ -259,7 +270,9 @@ export function getCurrentAuthMethod(): AuthMethod | null {
   if (localStorage.getItem('discord_auth') === 'true') return 'discord';
   if (localStorage.getItem('google_auth') === 'true') return 'google';
   if (localStorage.getItem('bip39_auth') === 'true') return 'bip39';
+  if (localStorage.getItem('local_auth') === 'true') return 'local';
   if (tokenPayload?.userType === 'bip39') return 'bip39';
+  if (tokenPayload?.userType === 'local') return 'local';
   return null;
 }
 
@@ -390,7 +403,7 @@ export function persistResolvedSession(
   options: PersistResolvedSessionOptions = {}
 ) {
   const rawUser = payload.user || null;
-  const resolvedUserType = payload.account?.userType || (method === 'bip39' ? 'bip39' : 'oauth');
+  const resolvedUserType = payload.account?.userType || (method === 'bip39' ? 'bip39' : method === 'local' ? 'local' : 'oauth');
   const resolvedUserId = String(
     payload.account?.userId ||
     payload.authData?.userProfile?.id ||
@@ -400,11 +413,22 @@ export function persistResolvedSession(
   );
 
   if (!resolvedUserId) {
-    throw new Error('Impossible de déterminer l’identifiant du compte résolu');
+    throw new Error('Impossible de déterminer l\'identifiant du compte résolu');
   }
 
   clearStoredAuthSession();
 
+  // Pour auth locale : seulement auth_token + auth (le JWT contient déjà userId/userType/sessionId)
+  if (method === 'local') {
+    if (payload.token) localStorage.setItem('auth_token', payload.token);
+    const authData = payload.authData?.userProfile
+      ? payload.authData
+      : { userProfile: getFallbackAuthProfile('local', resolvedUserId, rawUser), provider: 'local' };
+    localStorage.setItem('auth', JSON.stringify(authData));
+    return;
+  }
+
+  // Auth legacy (discord/google/bip39) — gardé pour compatibilité
   localStorage.setItem('auth_method', method);
   localStorage.setItem('resolved_user_type', resolvedUserType);
   localStorage.setItem('resolved_user_id', resolvedUserId);

@@ -6,6 +6,7 @@ import {
   deleteProfile,
   updateProfile,
   setActiveProfile,
+  verifyPin,
   LKSTV_PROFILE_KEY,
   type LKSTVProfile,
 } from '../services/lkstvProfileService';
@@ -149,6 +150,11 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onSelect }) => {
   const [pinPromptProfile, setPinPromptProfile] = useState<LKSTVProfile | null>(null);
   const [pinError, setPinError] = useState('');
 
+  // PIN prompt for profile selection
+  const [pinSelectProfile, setPinSelectProfile] = useState<LKSTVProfile | null>(null);
+  const [pinSelectError, setPinSelectError] = useState('');
+  const [pinSelectLoading, setPinSelectLoading] = useState(false);
+
   useEffect(() => {
     fetchProfiles()
       .then((p) => setProfiles(p.length > 0 ? p : FALLBACK_PROFILES))
@@ -161,13 +167,35 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onSelect }) => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleSelect = (profile: LKSTVProfile) => {
+  const doSelect = (profile: LKSTVProfile) => {
     setSelected(profile.id);
     setActiveProfile(profile);
-    // Ensure VIP is active immediately for all profiles
     localStorage.setItem('is_vip', 'true');
     window.dispatchEvent(new CustomEvent('vipStatusChanged', { detail: { vip: true } }));
     setTimeout(() => onSelect(profile.id), 400);
+  };
+
+  const handleSelect = (profile: LKSTVProfile) => {
+    if (profile.has_pin) {
+      setPinSelectError('');
+      setPinSelectProfile(profile);
+      return;
+    }
+    doSelect(profile);
+  };
+
+  const handlePinSelectConfirm = async (pin: string) => {
+    if (!pinSelectProfile || pinSelectLoading) return;
+    setPinSelectLoading(true);
+    const valid = await verifyPin(pinSelectProfile.id, pin);
+    setPinSelectLoading(false);
+    if (valid) {
+      const profile = pinSelectProfile;
+      setPinSelectProfile(null);
+      doSelect(profile);
+    } else {
+      setPinSelectError('PIN incorrect, réessayez');
+    }
   };
 
   const handleDeleteRequest = (profile: LKSTVProfile) => {
@@ -255,7 +283,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onSelect }) => {
         )}
       </AnimatePresence>
 
-      {/* PIN Prompt */}
+      {/* PIN Prompt — suppression */}
       <AnimatePresence>
         {pinPromptProfile && (
           <PinPrompt
@@ -263,6 +291,18 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onSelect }) => {
             onConfirm={(pin) => doDelete(pinPromptProfile.id, pin)}
             onCancel={() => { setPinPromptProfile(null); setPinError(''); }}
             error={pinError}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* PIN Prompt — sélection du profil */}
+      <AnimatePresence>
+        {pinSelectProfile && (
+          <PinPrompt
+            profileName={pinSelectProfile.name}
+            onConfirm={handlePinSelectConfirm}
+            onCancel={() => { setPinSelectProfile(null); setPinSelectError(''); }}
+            error={pinSelectError}
           />
         )}
       </AnimatePresence>
@@ -408,7 +448,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onSelect }) => {
                   maxLength={4}
                   className="w-full bg-zinc-800 text-white placeholder-gray-500 border border-zinc-700 rounded-md px-3 py-2 text-sm outline-none focus:border-zinc-500 tracking-widest"
                 />
-                <p className="text-gray-600 text-xs mt-1">Si défini, le PIN sera demandé avant la suppression</p>
+                <p className="text-gray-600 text-xs mt-1">Si défini, le PIN sera demandé à l'accès et à la suppression</p>
               </div>
               <button
                 onClick={handleCreate}

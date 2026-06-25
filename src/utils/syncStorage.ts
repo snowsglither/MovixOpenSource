@@ -1,7 +1,6 @@
 ﻿const SYNCABLE_EXACT_KEYS = new Set([
   'access_code',
   'access_code_expires',
-  'adWarningAccepted',
   'anti_spoiler',
   'continueWatching',
   'custom_lists',
@@ -26,7 +25,6 @@
   'subtitleStyle',
   'support_popup_seen',
   'user_language',
-  'is_vip',
   'watched_movie',
   'watched_tv',
   'watchPartyNickname',

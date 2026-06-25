@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 
 interface AdWarningContextType {
   showAdWarning: boolean;
@@ -9,21 +9,14 @@ interface AdWarningContextType {
 const AdWarningContext = createContext<AdWarningContextType | undefined>(undefined);
 
 export const AdWarningProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [showAdWarning, setShowAdWarning] = useState(false);
-
-  useEffect(() => {
-    const adWarningAccepted = localStorage.getItem('adWarningAccepted');
-    setShowAdWarning(!adWarningAccepted);
-  }, []);
-
-  const handleAccept = useCallback(() => {
-    localStorage.setItem('adWarningAccepted', 'true');
-    setShowAdWarning(false);
-  }, []);
-
+  // LKS TV — site privé sans pub : avertissement publicitaire désactivé
   const value = useMemo(
-    () => ({ showAdWarning, setShowAdWarning, handleAccept }),
-    [showAdWarning, setShowAdWarning, handleAccept]
+    () => ({
+      showAdWarning: false,
+      setShowAdWarning: () => { /* no-op */ },
+      handleAccept: () => { /* no-op */ },
+    }),
+    []
   );
 
   return (

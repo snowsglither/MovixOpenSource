@@ -22,7 +22,7 @@ import { checkVipStatus } from '../utils/vipUtils';
 const SYNC_OUTBOX_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 interface SyncOutboxPayload {
-  userType: 'oauth' | 'bip39';
+  userType: 'oauth' | 'bip39' | 'local';
   profileId: string;
   userId?: string;
   ops: unknown[];
@@ -33,7 +33,7 @@ function isSyncOutboxPayload(value: unknown): value is SyncOutboxPayload {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<SyncOutboxPayload>;
   return (
-    (candidate.userType === 'oauth' || candidate.userType === 'bip39')
+    (candidate.userType === 'oauth' || candidate.userType === 'bip39' || candidate.userType === 'local')
     && typeof candidate.profileId === 'string'
     && candidate.profileId.length > 0
     && Array.isArray(candidate.ops)

@@ -1,6 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
-import { isUserVip } from '../utils/vipUtils';
-
+import React, { createContext, useContext, useMemo } from 'react';
 
 interface AdFreePopupContextType {
   showAdFreePopup: boolean;
@@ -19,96 +17,25 @@ interface AdFreePopupContextType {
 const AdFreePopupContext = createContext<AdFreePopupContextType | undefined>(undefined);
 
 export const AdFreePopupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [showAdFreePopup, setShowAdFreePopup] = useState(false);
-  const [adType, setAdType] = useState<'ad1' | 'ad2'>('ad2');
-  const [playerToShow, setPlayerToShow] = useState<string | null>(null);
-  const [shouldLoadIframe, setShouldLoadIframe] = useState(true);
-  const [isSpecialPlayer, setIsSpecialPlayer] = useState(false);
-  const [isVoVostfrOnly, setIsVoVostfrOnly] = useState(false);
-  const [is_vip, setIsVip] = useState(() => {
-    // Check VIP status via server-verified utility
-    return isUserVip();
-  });
+  // LKS TV — site privé sans pub : is_vip toujours true, aucun popup publicitaire
+  const showPopupForPlayer = () => { /* no-op */ };
+  const handlePopupClose = () => { /* no-op */ };
+  const handlePopupAccept = () => { /* no-op */ };
+  const resetVipStatus = () => { /* no-op */ };
 
-  // Effect to listen for changes to VIP status (localStorage + custom events)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'is_vip') {
-        setIsVip(e.newValue === 'true');
-      }
-    };
-
-    const handleVipStatusChanged = () => {
-      setIsVip(isUserVip());
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('vipStatusChanged', handleVipStatusChanged);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('vipStatusChanged', handleVipStatusChanged);
-    };
-  }, []);
-
-  const showPopupForPlayer = useCallback((_playerType: string, _additionalInfo?: any) => {
-    // LKS TV — pas de publicité, accès direct pour tous
-    setShouldLoadIframe(true);
-  }, []);
-
-  const handlePopupClose = useCallback(() => {
-    setShowAdFreePopup(false);
-    setPlayerToShow(null);
-  }, []);
-
-  const handlePopupAccept = useCallback(() => {
-    setShowAdFreePopup(false);
-    setIsVip(true);
-    setShouldLoadIframe(true);
-    // Don't set localStorage here - this is temporary for the session only
-    try {
-      const evt = new CustomEvent('ad_popup_accepted', { detail: { timestamp: Date.now() } });
-      window.dispatchEvent(evt);
-    } catch { }
-  }, []);
-
-  const resetVipStatus = useCallback(() => {
-    // Don't reset if localStorage has permanent VIP status
-    if (localStorage.getItem('is_vip') !== 'true') {
-      setIsVip(false);
-      console.log('[AdFreePopupContext] VIP status reset.');
-    }
-  }, []);
-
-  // Memoize the context value so the 7 consumers (Movie/TVDetails, Watch
-  // pages, MovieVideoPlayer, AdFreePlayerAds) don't re-render on every parent
-  // render. AdFreePopupProvider sits near the root of the App provider stack,
-  // so anything its parents re-render for (route changes, auth ticks) used to
-  // cascade into the heavy detail pages via this provider. — perf
   const value = useMemo<AdFreePopupContextType>(() => ({
-    showAdFreePopup,
-    adType,
-    playerToShow,
-    shouldLoadIframe,
-    isSpecialPlayer,
-    isVoVostfrOnly,
-    is_vip,
+    showAdFreePopup: false,
+    adType: 'ad2',
+    playerToShow: null,
+    shouldLoadIframe: true,
+    isSpecialPlayer: false,
+    isVoVostfrOnly: false,
+    is_vip: true,
     showPopupForPlayer,
     handlePopupClose,
     handlePopupAccept,
-    resetVipStatus
-  }), [
-    showAdFreePopup,
-    adType,
-    playerToShow,
-    shouldLoadIframe,
-    isSpecialPlayer,
-    isVoVostfrOnly,
-    is_vip,
-    showPopupForPlayer,
-    handlePopupClose,
-    handlePopupAccept,
-    resetVipStatus
-  ]);
+    resetVipStatus,
+  }), []);
 
   return (
     <AdFreePopupContext.Provider value={value}>

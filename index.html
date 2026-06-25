@@ -170,6 +170,15 @@
     })();
   </script>
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+  <script>
+    (function () {
+      var publicPaths = ['/login', '/setup'];
+      var path = window.location.pathname;
+      if (publicPaths.indexOf(path) === -1 && !localStorage.getItem('auth_token')) {
+        window.location.replace('/login');
+      }
+    })();
+  </script>
   <script type="module" src="/src/main.tsx"></script>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6Q3B4D5KQL"></script>

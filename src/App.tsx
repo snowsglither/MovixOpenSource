@@ -21,6 +21,8 @@ import axios from 'axios';
 import Footer from './components/Footer';
 import CreateAccount from './pages/CreateAccount';
 import LoginBip39 from './pages/LoginBip39';
+import LocalLogin from './pages/LocalLogin';
+import LocalSetup from './pages/LocalSetup';
 import { AlertService } from './services/alertService';
 import NotificationToast from './components/NotificationToast';
 import { NotificationData } from './types/alerts';
@@ -450,24 +452,20 @@ const IOSHomeScreenHandler = () => {
 };
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const isDiscordAuth = localStorage.getItem('discord_auth') === 'true';
-  const isGoogleAuth = localStorage.getItem('google_auth') === 'true';
-  const isBip39Auth = localStorage.getItem('bip39_auth') === 'true';
+  const hasToken = !!localStorage.getItem('auth_token');
   const isVipUser = localStorage.getItem('is_vip') === 'true';
 
-  // Vérifier l'ancienne méthode d'authentification VIP (pour compatibilité)
+  // Compatibilité : access_code VIP sans compte
   let isVipAuth = false;
   const authStr = localStorage.getItem('auth');
   if (authStr) {
     try {
       const authObj = JSON.parse(authStr);
-      if (authObj.userProfile && authObj.userProfile.provider === 'access_code') {
-        isVipAuth = true;
-      }
+      if (authObj.userProfile?.provider === 'access_code') isVipAuth = true;
     } catch { }
   }
 
-  const isAuthenticated = isDiscordAuth || isGoogleAuth || isBip39Auth || isVipAuth || isVipUser;
+  const isAuthenticated = hasToken || isVipAuth || isVipUser;
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
@@ -725,7 +723,7 @@ const PersistenceManager = () => {
 
       const userInfo = getUserInfo();
       // Only sync for oauth and bip39 users with a selected profile
-      if (!userInfo.type || !userInfo.profileId || !['oauth', 'bip39'].includes(userInfo.type)) {
+      if (!userInfo.type || !userInfo.profileId || !['oauth', 'bip39', 'local'].includes(userInfo.type)) {
         syncDiag.sendOpsBlockedUserInfo++;
         syncDiag.lastUserInfo = JSON.stringify(userInfo);
         return;
@@ -1295,7 +1293,7 @@ const PersistenceManager = () => {
       if (!pending.length) return;
 
       const userInfo = getUserInfo();
-      if (!userInfo.type || !userInfo.profileId || !['oauth', 'bip39'].includes(userInfo.type)) return;
+      if (!userInfo.type || !userInfo.profileId || !['oauth', 'bip39', 'local'].includes(userInfo.type)) return;
       const authToken = localStorage.getItem('auth_token');
       if (!authToken) return;
 
@@ -1436,9 +1434,9 @@ const PersistenceManager = () => {
 
     const userInfo = getUserInfo();
 
-    // Only load data for oauth and bip39 users with a selected profile
+    // Only load data for authenticated users with a selected profile
     // Note: ProfileContext now handles loading profile data, so we just mark sync as done
-    if (userInfo.type && userInfo.id && userInfo.profileId && ['oauth', 'bip39'].includes(userInfo.type)) {
+    if (userInfo.type && userInfo.id && userInfo.profileId && ['oauth', 'bip39', 'local'].includes(userInfo.type)) {
       // ProfileContext will handle loading the profile data
       debugAppLog("Profile data loading handled by ProfileContext");
       setIsInitialSyncDone(true);
@@ -1550,7 +1548,8 @@ const DefaultProfileNudge: React.FC = () => {
 };
 
 // Garde locale — affiche ProfileSelector tant qu'aucun profil local n'est choisi.
-// Indépendant de l'auth API : bloque tout le monde au premier lancement.
+// Vérifie d'abord que l'utilisateur est connecté : sans token, on laisse passer
+// pour que PrivateRoute prenne le relais et redirige vers /login.
 const LocalProfileGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [chosen, setChosen] = React.useState<boolean>(
     () => {
@@ -1569,7 +1568,9 @@ const LocalProfileGate: React.FC<{ children: React.ReactNode }> = ({ children })
     return () => window.removeEventListener('lkstv_reset_profile', handler);
   }, []);
 
-  if (!chosen) {
+  const hasToken = !!localStorage.getItem('auth_token');
+
+  if (!chosen && hasToken) {
     return <ProfileSelector onSelect={() => setChosen(true)} />;
   }
 
@@ -1588,24 +1589,20 @@ const ProfileGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isOauthAuthorizeRoute = location.pathname.startsWith('/oauth/authorize');
 
   // Check if user is authenticated
-  const isDiscordAuth = localStorage.getItem('discord_auth') === 'true';
-  const isGoogleAuth = localStorage.getItem('google_auth') === 'true';
-  const isBip39Auth = localStorage.getItem('bip39_auth') === 'true';
+  const hasToken = !!localStorage.getItem('auth_token');
   const isVipUser = localStorage.getItem('is_vip') === 'true';
 
-  // Vérifier l'ancienne méthode d'authentification VIP (pour compatibilité)
+  // Compatibilité : access_code VIP sans compte
   let isVipAuth = false;
   const authStr = localStorage.getItem('auth');
   if (authStr) {
     try {
       const authObj = JSON.parse(authStr);
-      if (authObj.userProfile && authObj.userProfile.provider === 'access_code') {
-        isVipAuth = true;
-      }
+      if (authObj.userProfile?.provider === 'access_code') isVipAuth = true;
     } catch { }
   }
 
-  const isAuthenticated = isDiscordAuth || isGoogleAuth || isBip39Auth || isVipAuth || isVipUser;
+  const isAuthenticated = hasToken || isVipAuth || isVipUser;
 
   // Timeout mechanism: if loading takes more than 5 seconds, continue without profiles
   React.useEffect(() => {
@@ -1818,9 +1815,11 @@ const AppWithIntro: React.FC = () => {
         <ProfileGate>
           <Routes>
             {/* Eager — landing page, kept in main bundle */}
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
 
             {/* Routes spéciales avec props ou logique conditionnelle */}
+            <Route path="/login" element={<LocalLogin />} />
+            <Route path="/setup" element={<LocalSetup />} />
             <Route path="/login-bip39" element={<LoginBip39 />} />
             <Route path="/create-account" element={<CreateAccount />} />
             <Route path="/link-bip39" element={<LoginBip39 mode="link" />} />

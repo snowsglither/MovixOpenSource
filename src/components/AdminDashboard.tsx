@@ -12,10 +12,12 @@ import {
   ShieldCheck,
   Sparkles,
   Sprout,
+  Users,
   Wrench
 } from 'lucide-react';
 
 import AdminComments from './AdminComments';
+import LocalAccountsManager from './LocalAccountsManager';
 import AdminHelpFeedback from './AdminHelpFeedback';
 import AdminLinkSubmissions from './Greenlight/AdminLinkSubmissions';
 import AdminWishboard from './Greenlight/AdminWishboard';
@@ -38,7 +40,8 @@ type AdminSection =
   | 'comments'
   | 'shared-lists'
   | 'reports'
-  | 'help-feedback';
+  | 'help-feedback'
+  | 'accounts';
 
 interface AdminDashboardProps {
   role: 'admin' | 'uploader';
@@ -138,6 +141,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
         icon: HelpCircle,
         accent: 'text-sky-300',
         highlight: '56 189 248'
+      },
+      {
+        id: 'accounts',
+        title: 'Comptes utilisateurs',
+        description: 'Créer et gérer les comptes de connexion',
+        icon: Users,
+        accent: 'text-indigo-300',
+        highlight: '99 102 241'
       }
     ],
     [t]
@@ -324,6 +335,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                 {t('adminOauthApps.cardTitle')}
               </h2>
               <AdminOAuthApps />
+            </div>
+          )}
+
+          {activeSection === 'accounts' && role === 'admin' && (
+            <div>
+              <h2 className="mb-6 flex items-center gap-3 text-2xl font-bold text-white">
+                <Users className="h-6 w-6 text-indigo-300" />
+                Comptes utilisateurs
+              </h2>
+              <LocalAccountsManager />
             </div>
           )}
         </AnimatedBorderCard>
