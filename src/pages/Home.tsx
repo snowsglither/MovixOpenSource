@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import HeroSkeleton from '../components/skeletons/HeroSkeleton';
 import ContentRowSkeleton from '../components/skeletons/ContentRowSkeleton';
 
-import TelegramPromotion from '../components/TelegramPromotion';
+
 import HeroSlider from '../components/HeroSlider';
 import EmblaCarousel from '../components/EmblaCarousel';
 import EmblaCarouselPlatforms from '../components/EmblaCarouselPlatforms';
@@ -1032,44 +1032,6 @@ const Home: React.FC = () => {
               </div>
             )}
 
-            {/* Personalized: "Because you watched X" */}
-            {personalizedReco?.becauseYouWatched?.map((group, idx) => (
-              <div key={`byw-${group.sourceId}`} className="content-row-container px-4 md:px-8 mb-2 mt-16">
-                <LazySection index={idx + 2} immediateLoadCount={IMMEDIATE_LOAD_COUNT}>
-                  <EmblaCarousel
-                    title={becauseYouWatchedTitles[idx]}
-                    items={group.items}
-                    mediaType="mixed"
-                  />
-                </LazySection>
-              </div>
-            ))}
-
-            {/* Personalized: "Popular in [genre]" */}
-            {personalizedReco?.topGenres?.map((group, idx) => (
-              <div key={`genre-${group.genreId}`} className="content-row-container px-4 md:px-8 mb-2 mt-16">
-                <LazySection index={idx + 5} immediateLoadCount={IMMEDIATE_LOAD_COUNT}>
-                  <EmblaCarousel
-                    title={topGenresTitles[idx]}
-                    items={group.items}
-                    mediaType="mixed"
-                  />
-                </LazySection>
-              </div>
-            ))}
-
-            {/* Personalized: "Users also watched" (collaborative filtering) */}
-            {personalizedReco?.usersAlsoWatched && personalizedReco.usersAlsoWatched.length > 0 && (
-              <div className="content-row-container px-4 md:px-8 mb-2 mt-16">
-                <LazySection index={8} immediateLoadCount={IMMEDIATE_LOAD_COUNT}>
-                  <EmblaCarousel
-                    title={usersAlsoWatchedTitle}
-                    items={personalizedReco.usersAlsoWatched}
-                    mediaType="mixed"
-                  />
-                </LazySection>
-              </div>
-            )}
 
             {/* Section "Tendances du jour" - Section prioritaire (index 1) */}
             {topContent.length > 0 && (
@@ -1085,18 +1047,6 @@ const Home: React.FC = () => {
               </div>
             )}
 
-            {/* Recommandations - Section prioritaire (index 2) */}
-            {!personalizedReco && recommendations.length > 0 && (
-              <div className="mb-16">
-                <LazySection index={2} immediateLoadCount={IMMEDIATE_LOAD_COUNT}>
-                  <EmblaCarousel
-                    title={t('home.recommendationsForYou')}
-                    items={recommendations}
-                    mediaType="recommendations"
-                  />
-                </LazySection>
-              </div>
-            )}
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
