@@ -23,7 +23,7 @@ import { useWrappedTracker } from '../../hooks/useWrappedTracker';
 import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { isContentAllowed, getClassificationLabel } from '../../utils/certificationUtils';
-import { profileStorageKey, getActiveProfile, upsertHistory } from '../../services/lkstvProfileService';
+import { getActiveProfile, upsertHistory } from '../../services/lkstvProfileService';
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -84,20 +84,6 @@ interface VideoSource {
   id?: string; // Unique identifier for comparison
 }
 
-interface ContinueWatchingTvEntry {
-  id: number;
-  currentEpisode?: {
-    season: number;
-    episode: number;
-  };
-  lastAccessed?: string;
-  [key: string]: unknown;
-}
-
-interface ContinueWatchingStore {
-  movies: unknown[];
-  tv: ContinueWatchingTvEntry[];
-}
 
 
 /**
@@ -252,34 +238,6 @@ const WatchAnime: React.FC = () => {
       return;
     }
 
-    const cwKey = profileStorageKey('continueWatching');
-    let continueWatching: ContinueWatchingStore;
-    try {
-      continueWatching = JSON.parse(localStorage.getItem(cwKey) || '{"movies": [], "tv": []}') as ContinueWatchingStore;
-    } catch {
-      continueWatching = { movies: [], tv: [] };
-    }
-
-    if (!Array.isArray(continueWatching.movies)) continueWatching.movies = [];
-    if (!Array.isArray(continueWatching.tv)) continueWatching.tv = [];
-
-    const existingShow = continueWatching.tv.find((tvShow) => tvShow.id === showIdInt);
-    const updatedShow = {
-      ...(existingShow || {}),
-      id: showIdInt,
-      currentEpisode: {
-        season: seasonNumber,
-        episode: episodeNumber
-      },
-      lastAccessed: new Date().toISOString()
-    };
-
-    continueWatching.tv = continueWatching.tv.filter((tvShow) => tvShow.id !== showIdInt);
-    continueWatching.tv.unshift(updatedShow);
-    continueWatching.tv = continueWatching.tv.slice(0, 20);
-    localStorage.setItem(cwKey, JSON.stringify(continueWatching));
-
-    // Sync to backend for cross-device history
     const activeProfile = getActiveProfile();
     if (activeProfile) {
       upsertHistory({

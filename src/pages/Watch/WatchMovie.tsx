@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -19,7 +19,7 @@ import { isUserVip, getVipHeaders } from '../../utils/authUtils';
 import { isExtensionAvailable } from '../../utils/extensionProxy';
 import { RIVESTREAM_PROXIES } from '../../config/rivestreamProxy';
 import { buildProxyUrl, MAIN_API } from '../../config/runtime';
-import { profileStorageKey, getActiveProfile, upsertHistory } from '../../services/lkstvProfileService';
+import { getActiveProfile, upsertHistory, fetchHistory } from '../../services/lkstvProfileService';
 import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { isContentAllowed, getClassificationLabel } from '../../utils/certificationUtils';
@@ -461,7 +461,7 @@ const WatchMovie: React.FC = () => {
   const [selectedDarkinoSource, setSelectedDarkinoSource] = useState<number>(0);
   const [mp4Sources, setMp4Sources] = useState<{ url: string; label?: string; language?: string; isVip?: boolean }[]>([]);
   const [selectedMp4Source, setSelectedMp4Source] = useState<number>(0);
-  const [watchProgress] = useState<number>(0);
+  const [watchProgress, setWatchProgress] = useState<number>(0);
   const [, setLoadingError] = useState<boolean>(false);
   const [nextMovie, setNextMovie] = useState<NextMovieType | null>(null);
   const [, setLoadingNextMovie] = useState<boolean>(false);
@@ -693,6 +693,34 @@ const WatchMovie: React.FC = () => {
     }
   }, [loadingDarkino, loadingCoflix, loadingOmega, loadingFrembed, loadingFstream, loadingWiflix, loadingViper, loadingExtractions]);
 
+  // Load saved progress from backend for cross-device resume
+  useEffect(() => {
+    if (!id) return;
+    const activeProfile = getActiveProfile();
+    if (!activeProfile) return;
+    fetchHistory(activeProfile.id).then((history) => {
+      const entry = history.find((h) => h.media_id === parseInt(id) && h.media_type === 'movie');
+      if (entry && entry.progress && entry.progress > 30) {
+        setWatchProgress(entry.progress);
+      }
+    }).catch(() => {});
+  }, [id]);
+
+  const handleSaveProgress = useCallback((position: number, duration: number) => {
+    if (!id) return;
+    const activeProfile = getActiveProfile();
+    if (!activeProfile) return;
+    upsertHistory({
+      profile_id: activeProfile.id,
+      media_type: 'movie',
+      media_id: parseInt(id),
+      title: movieTitle,
+      poster_path: posterPath || '',
+      progress: position,
+      duration,
+    }).catch(() => {});
+  }, [id, movieTitle, posterPath]);
+
   // Fetch video sources
   const fetchVideoSources = async () => {
     if (!id) {
@@ -749,43 +777,14 @@ const WatchMovie: React.FC = () => {
         }
       }
 
-      // Add movie to continueWatching (if history is enabled)
+      // Save to backend history
       if (localStorage.getItem('settings_disable_history') !== 'true') {
-        const cwKey = profileStorageKey('continueWatching');
-        const continueWatching = JSON.parse(localStorage.getItem(cwKey) || '{"movies": [], "tv": []}');
-
-        // Ensure structure exists
-        if (!continueWatching.movies) continueWatching.movies = [];
-        if (!continueWatching.tv) continueWatching.tv = [];
-
-        const movieIdInt = parseInt(id);
-
-        // Check if movie already exists (handle both old and new format)
-        const existingIndex = continueWatching.movies.findIndex((item: any) => {
-          const itemId = typeof item === 'number' ? item : item.id;
-          return itemId === movieIdInt;
-        });
-
-        if (existingIndex !== -1) {
-          // Remove existing entry to move it to the front
-          continueWatching.movies.splice(existingIndex, 1);
-        }
-
-        // Add movie with timestamp at the beginning (no limit)
-        continueWatching.movies.unshift({
-          id: movieIdInt,
-          lastAccessed: new Date().toISOString()
-        });
-
-        localStorage.setItem(cwKey, JSON.stringify(continueWatching));
-
-        // Sync to backend for cross-device history
         const activeProfile = getActiveProfile();
         if (activeProfile) {
           upsertHistory({
             profile_id: activeProfile.id,
             media_type: 'movie',
-            media_id: movieIdInt,
+            media_id: parseInt(id),
             title: tmdbResponse.data.title || '',
             poster_path: tmdbResponse.data.poster_path || '',
             progress: 0,
@@ -3276,6 +3275,7 @@ const WatchMovie: React.FC = () => {
                       embedUrl={embedUrl || undefined}
                       title={movieTitle}
                       initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                     />
                   </div>
                 </div>
@@ -3380,6 +3380,7 @@ const WatchMovie: React.FC = () => {
                       embedUrl={embedUrl || undefined}
                       title={movieTitle}
                       initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                     />
                   </div>
                 </div>
@@ -3475,6 +3476,7 @@ const WatchMovie: React.FC = () => {
 
             title={movieTitle}
             initialTime={watchProgress}
+            onSaveProgress={handleSaveProgress}
           />
           {/* Sources Menu Overlay */}
           <AnimatePresence>
@@ -3526,6 +3528,7 @@ const WatchMovie: React.FC = () => {
                       embedUrl={embedUrl || undefined}
                       title={movieTitle}
                       initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                     />
                   </div>
                 </div>
@@ -3580,6 +3583,7 @@ const WatchMovie: React.FC = () => {
 
             title={movieTitle}
             initialTime={watchProgress}
+            onSaveProgress={handleSaveProgress}
           />
           {/* Sources Menu Overlay */}
           <AnimatePresence>
@@ -3625,6 +3629,7 @@ const WatchMovie: React.FC = () => {
                       embedUrl={embedUrl || undefined}
                       title={movieTitle}
                       initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                     />
                   </div>
                 </div>
@@ -3679,6 +3684,7 @@ const WatchMovie: React.FC = () => {
 
             title={movieTitle}
             initialTime={watchProgress}
+            onSaveProgress={handleSaveProgress}
           />
           {/* Sources Menu Overlay */}
           <AnimatePresence>
@@ -3730,6 +3736,7 @@ const WatchMovie: React.FC = () => {
                       embedUrl={embedUrl || undefined}
                       title={movieTitle}
                       initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                     />
                   </div>
                 </div>
@@ -3784,6 +3791,7 @@ const WatchMovie: React.FC = () => {
 
             title={movieTitle}
             initialTime={watchProgress}
+            onSaveProgress={handleSaveProgress}
           />
           {/* Sources Menu Overlay */}
           <AnimatePresence>
@@ -3835,6 +3843,7 @@ const WatchMovie: React.FC = () => {
                       embedUrl={embedUrl || undefined}
                       title={movieTitle}
                       initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                     />
                   </div>
                 </div>
@@ -3903,6 +3912,7 @@ const WatchMovie: React.FC = () => {
 
                 title={movieTitle}
                 initialTime={watchProgress}
+                onSaveProgress={handleSaveProgress}
               />
               {/* Sources Menu Overlay */}
               <AnimatePresence>
@@ -3950,6 +3960,7 @@ const WatchMovie: React.FC = () => {
                           embedUrl={embedUrl || undefined}
                           title={movieTitle}
                           initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                         />
                       </div>
                     </div>
@@ -3983,6 +3994,7 @@ const WatchMovie: React.FC = () => {
                 embedUrl={embedUrl || undefined}
                 title={movieTitle}
                 initialTime={watchProgress}
+                onSaveProgress={handleSaveProgress}
               />
             </div>
           )}
@@ -4038,6 +4050,7 @@ const WatchMovie: React.FC = () => {
 
             title={movieTitle}
             initialTime={watchProgress}
+            onSaveProgress={handleSaveProgress}
           />
           {/* Sources Menu Overlay */}
           <AnimatePresence>
@@ -4083,6 +4096,7 @@ const WatchMovie: React.FC = () => {
                       embedUrl={embedUrl || undefined}
                       title={movieTitle}
                       initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                     />
                   </div>
                 </div>
@@ -4205,6 +4219,7 @@ const WatchMovie: React.FC = () => {
                       embedUrl={embedUrl || undefined}
                       title={movieTitle}
                       initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                     />
                   </div>
                 </div>
@@ -4306,6 +4321,7 @@ const WatchMovie: React.FC = () => {
                       embedUrl={embedUrl || undefined}
                       title={movieTitle}
                       initialTime={watchProgress}
+                      onSaveProgress={handleSaveProgress}
                     />
                   </div>
                 </div>

@@ -679,6 +679,7 @@ interface HLSPlayerProps {
   onPlayerPlay?: () => void;      // Callback when video plays
   onPlayerPause?: () => void;     // Callback when video pauses
   onPlayerTimeUpdate?: (currentTime: number) => void; // Callback for time updates
+  onSaveProgress?: (position: number, duration: number) => void; // Cross-device progress sync
   onPlayerSeeked?: () => void;      // Callback when seeking is complete
   onPlayerEnded?: () => void;       // Callback when video ends (distinct from original onEnded for different purposes)
 
@@ -934,6 +935,7 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
   onPlayerPause,
   onPlayerSeeked,
   onPlayerEnded,
+  onSaveProgress,
   onShowSources,
   priorityCategory,
 }, ref) => {
@@ -5746,7 +5748,8 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
       duration: video.duration
     };
     localStorage.setItem(key, JSON.stringify(progress));
-  }, [getProgressKey, tvShowId, seasonNumber, episodeNumber, tvShow, saveProgressEnabled]);
+    if (onSaveProgress) onSaveProgress(video.currentTime, video.duration);
+  }, [getProgressKey, tvShowId, seasonNumber, episodeNumber, tvShow, saveProgressEnabled, onSaveProgress]);
 
   const loadProgress = useCallback(() => {
     const video = videoRef.current;
@@ -5763,28 +5766,26 @@ const HLSPlayer = forwardRef<HLSPlayerRef, HLSPlayerProps>(({
       console.log(`[loadProgress] setVideoTime called. Current video time: ${video.currentTime}, Duration: ${video.duration}`);
       // Check if duration is valid before seeking
       if (video.duration && isFinite(video.duration) && video.duration > 0) {
-        // Use initialTime prop if provided and valid
-        if (initialTime && initialTime > 0 && initialTime < video.duration - 30) {
-          console.log(`[loadProgress] Seeking to initialTime prop: ${initialTime}`);
+        // localStorage is authoritative for this device (most recent); initialTime is cross-device fallback
+        const savedProgress = localStorage.getItem(key);
+        if (savedProgress) {
+          try {
+            const progress: WatchProgress = JSON.parse(savedProgress);
+            if (progress.position < video.duration - 30) {
+              console.log(`[loadProgress] Seeking to saved localStorage position: ${progress.position}`);
+              video.currentTime = progress.position;
+            } else {
+              console.log(`[loadProgress] Not seeking: localStorage progress is too close to end.`);
+            }
+          } catch (error) {
+            console.error('[loadProgress] Error parsing saved progress:', error);
+          }
+        } else if (initialTime && initialTime > 0 && initialTime < video.duration - 30) {
+          // No local progress — resume from backend (cross-device)
+          console.log(`[loadProgress] Seeking to initialTime (cross-device resume): ${initialTime}`);
           video.currentTime = initialTime;
         } else {
-          // Otherwise, use localStorage progress
-          const savedProgress = localStorage.getItem(key);
-          if (savedProgress) {
-            try {
-              const progress: WatchProgress = JSON.parse(savedProgress);
-              if (progress.position < video.duration - 30) {
-                console.log(`[loadProgress] Seeking to saved localStorage position: ${progress.position}`);
-                video.currentTime = progress.position;
-              } else {
-                console.log(`[loadProgress] Not seeking: localStorage progress is too close to end.`);
-              }
-            } catch (error) {
-              console.error('[loadProgress] Error parsing saved progress:', error);
-            }
-          } else {
-            console.log(`[loadProgress] No localStorage progress found for key: ${key}`);
-          }
+          console.log(`[loadProgress] No localStorage progress found for key: ${key}`);
         }
       } else {
         console.log(`[loadProgress] Not seeking: Duration invalid/zero (${video.duration || 'N/A'}).`);

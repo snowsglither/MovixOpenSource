@@ -25,7 +25,7 @@ import { getTmdbLanguage } from '../../i18n';
 import { useProfile } from '../../context/ProfileContext';
 import { getClassificationLabel } from '../../utils/certificationUtils';
 import { getCoflixPreferredUrl } from '../../utils/coflix';
-import { profileStorageKey, getActiveProfile, upsertHistory } from '../../services/lkstvProfileService';
+import { getActiveProfile, upsertHistory, fetchHistory } from '../../services/lkstvProfileService';
 
 
 const MAIN_API = import.meta.env.VITE_MAIN_API;
@@ -548,7 +548,7 @@ const WatchTv: React.FC = () => {
   const [selectedDarkinoSource, setSelectedDarkinoSource] = useState<number>(0);
   const [mp4Sources, setMp4Sources] = useState<{ url: string; label?: string; language?: string; isVip?: boolean }[]>([]);
   const [selectedMp4Source, setSelectedMp4Source] = useState<number>(0);
-  const [watchProgress] = useState<number>(0); // Used to set initial HLSPlayer time
+  const [watchProgress, setWatchProgress] = useState<number>(0); // Used to set initial HLSPlayer time
   const [, setLoadingError] = useState<boolean>(false);
   const [nextEpisodeData, setNextEpisodeData] = useState<NextEpisodeType | null>(null);
   const [, setLoadingNextEpisode] = useState<boolean>(false);
@@ -946,6 +946,41 @@ const WatchTv: React.FC = () => {
     }
   }, [id, seasonNumber, episodeNumber, rivestreamLoaded]);
 
+  // Load saved progress from backend for cross-device resume
+  useEffect(() => {
+    if (!id) return;
+    const activeProfile = getActiveProfile();
+    if (!activeProfile) return;
+    fetchHistory(activeProfile.id).then((history) => {
+      const entry = history.find(
+        (h) => h.media_id === parseInt(id) && (h.media_type === 'tv' || h.media_type === 'anime') &&
+               h.season === seasonNumber && h.episode === episodeNumber
+      );
+      if (entry && entry.progress && entry.progress > 30) {
+        setWatchProgress(entry.progress);
+      } else {
+        setWatchProgress(0);
+      }
+    }).catch(() => {});
+  }, [id, seasonNumber, episodeNumber]);
+
+  const handleSaveProgress = useCallback((position: number, duration: number) => {
+    if (!id) return;
+    const activeProfile = getActiveProfile();
+    if (!activeProfile) return;
+    upsertHistory({
+      profile_id: activeProfile.id,
+      media_type: 'tv',
+      media_id: parseInt(id),
+      title: showTitle,
+      poster_path: showPosterPath || '',
+      season: seasonNumber,
+      episode: episodeNumber,
+      progress: position,
+      duration,
+    }).catch(() => {});
+  }, [id, showTitle, showPosterPath, seasonNumber, episodeNumber]);
+
   // --- Fetch Seasons Data ---
   const fetchSeasons = async () => {
     try {
@@ -1251,53 +1286,14 @@ const WatchTv: React.FC = () => {
           vote_average: episode.vote_average
         });
 
-        // Add TV show episode to continueWatching (if history is enabled)
+        // Save to backend history
         if (localStorage.getItem('settings_disable_history') !== 'true') {
-          const cwKey = profileStorageKey('continueWatching');
-          const continueWatching = JSON.parse(localStorage.getItem(cwKey) || '{"movies": [], "tv": []}');
-
-          // Ensure structure exists
-          if (!continueWatching.movies) continueWatching.movies = [];
-          if (!continueWatching.tv) continueWatching.tv = [];
-
-          // Find existing TV show entry or create new one
-          const showIdInt = parseInt(id!);
-          const existingShow = continueWatching.tv.find((tvShow: any) => tvShow.id === showIdInt);
-
-          if (existingShow) {
-            // Update existing show with current episode and timestamp
-            existingShow.currentEpisode = {
-              season: seasonNumber,
-              episode: episodeNumber
-            };
-            existingShow.lastAccessed = new Date().toISOString();
-            // Move to front of array
-            continueWatching.tv = continueWatching.tv.filter((tvShow: any) => tvShow.id !== showIdInt);
-            continueWatching.tv.unshift(existingShow);
-          } else {
-            // Create new TV show entry
-            const newTvEntry = {
-              id: showIdInt,
-              currentEpisode: {
-                season: seasonNumber,
-                episode: episodeNumber
-              },
-              lastAccessed: new Date().toISOString()
-            };
-            continueWatching.tv.unshift(newTvEntry);
-          }
-
-          // Keep only last 20 TV shows
-          // continueWatching.tv = continueWatching.tv.slice(0, 20); // Removed limit
-          localStorage.setItem(cwKey, JSON.stringify(continueWatching));
-
-          // Sync to backend for cross-device history
           const activeProfile = getActiveProfile();
           if (activeProfile) {
             upsertHistory({
               profile_id: activeProfile.id,
               media_type: 'tv',
-              media_id: showIdInt,
+              media_id: parseInt(id!),
               title: showTitle || '',
               poster_path: showPosterPath || '',
               season: seasonNumber,
@@ -4711,6 +4707,7 @@ const WatchTv: React.FC = () => {
             // Pass TV show context for UI/progress saving
             tvShow={hlsTvShowProp}
             initialTime={watchProgress} // Add initialTime prop
+            onSaveProgress={handleSaveProgress}
             // Pass episodes data for internal episodes menu
             episodes={episodes}
             seasons={seasons}

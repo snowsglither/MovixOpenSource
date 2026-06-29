@@ -19,7 +19,7 @@ import { SITE_URL } from '../config/runtime';
 import { getTmdbLanguage } from '../i18n';
 import { getPersonalizedRecommendations, isRecommendationsEnabled, PersonalizedRecommendations } from '../services/recommendationService';
 import CarouselTitle from '../components/CarouselTitle';
-import { profileStorageKey, getActiveProfile, fetchHistory } from '../services/lkstvProfileService';
+import { getActiveProfile, fetchHistory, removeFromHistory, clearAllHistory } from '../services/lkstvProfileService';
 
 // Nombre de sections à charger immédiatement (les premières sont prioritaires)
 const IMMEDIATE_LOAD_COUNT = 3;
@@ -572,155 +572,59 @@ const Home: React.FC = () => {
   useEffect(() => {
     const loadContinueWatching = async () => {
       try {
-        const cwKey = profileStorageKey('continueWatching');
-
-        // Fetch from backend and merge into localStorage for cross-device sync
         const activeProfile = getActiveProfile();
-        if (activeProfile) {
-          try {
-            const serverHistory = await fetchHistory(activeProfile.id);
-            if (serverHistory.length > 0) {
-              let local: { movies: any[], tv: any[] } = { movies: [], tv: [] };
-              try { local = JSON.parse(localStorage.getItem(cwKey) || '{"movies":[],"tv":[]}'); } catch {}
-              if (!Array.isArray(local.movies)) local.movies = [];
-              if (!Array.isArray(local.tv)) local.tv = [];
-
-              for (const h of serverHistory) {
-                if (h.media_type === 'movie') {
-                  if (!local.movies.find((m: any) => m.id === h.media_id)) {
-                    local.movies.push({ id: h.media_id, lastAccessed: h.watched_at || new Date().toISOString() });
-                  }
-                } else if (h.media_type === 'tv' || h.media_type === 'anime') {
-                  const existing = local.tv.find((t: any) => t.id === h.media_id);
-                  const entry = {
-                    id: h.media_id,
-                    currentEpisode: h.season && h.episode ? { season: h.season, episode: h.episode } : undefined,
-                    lastAccessed: h.watched_at || new Date().toISOString(),
-                  };
-                  if (!existing) {
-                    local.tv.push(entry);
-                  } else if (!existing.currentEpisode && entry.currentEpisode) {
-                    Object.assign(existing, entry);
-                  }
-                }
-              }
-              localStorage.setItem(cwKey, JSON.stringify(local));
-            }
-          } catch (_) {
-            // Backend unreachable — fall through to localStorage
-          }
+        if (!activeProfile) {
+          setContinueWatching([]);
+          return;
         }
 
-        const savedItems = localStorage.getItem(cwKey);
-        if (savedItems) {
-          // Check if we need to migrate from old format to new format
-          let migratedData: { movies: any[], tv: any[] };
+        const serverHistory = await fetchHistory(activeProfile.id);
 
-          try {
-            const parsedData = JSON.parse(savedItems);
+        const allItems = serverHistory.map((h) => ({
+          id: h.media_id,
+          media_type: h.media_type === 'anime' ? 'tv' : h.media_type as 'movie' | 'tv',
+          currentEpisode: h.season && h.episode ? { season: h.season, episode: h.episode } : undefined,
+          lastAccessed: h.watched_at || new Date().toISOString(),
+        }));
 
-            // Check if old format (array) vs new format (object with movies/tv properties)
-            if (Array.isArray(parsedData)) {
-              migratedData = { movies: [], tv: [] };
-              parsedData.forEach((item: any) => {
-                if (item.media_type === 'movie') {
-                  migratedData.movies.push({ id: item.id, lastAccessed: new Date().toISOString() });
-                } else if (item.media_type === 'tv') {
-                  migratedData.tv.push({ id: item.id, currentEpisode: item.currentEpisode, lastAccessed: new Date().toISOString() });
-                }
-              });
-              localStorage.setItem(cwKey, JSON.stringify(migratedData));
-            } else {
-              migratedData = parsedData;
-
-              // Migrate old format movies to new format
-              if (migratedData.movies && Array.isArray(migratedData.movies)) {
-                let needsUpdate = false;
-                const updatedMovies = migratedData.movies.map((movieItem: any, index: number) => {
-                  if (typeof movieItem === 'number') {
-                    needsUpdate = true;
-                    const now = new Date();
-                    const olderTime = new Date(now.getTime() - (index * 60000));
-                    return { id: movieItem, lastAccessed: olderTime.toISOString() };
-                  }
-                  return movieItem;
-                });
-
-                if (needsUpdate) {
-                  migratedData.movies = updatedMovies;
-                  localStorage.setItem(cwKey, JSON.stringify(migratedData));
-                }
-              }
-            }
-          } catch (error) {
-            console.error('Error parsing continueWatching data:', error);
-            migratedData = { movies: [], tv: [] };
-            localStorage.setItem(cwKey, JSON.stringify(migratedData));
-          }
-
-          // Process with the new data structure
-          const data = migratedData;
-          const allItems: any[] = [];
-
-          if (data.movies && Array.isArray(data.movies)) {
-            for (const movieItem of data.movies) {
-              allItems.push({ id: movieItem.id, media_type: 'movie', lastAccessed: movieItem.lastAccessed });
-            }
-          }
-
-          if (data.tv && Array.isArray(data.tv)) {
-            for (const tvShow of data.tv) {
-              const lastAccessed = tvShow.lastAccessed || '1970-01-01T00:00:00.000Z';
-              allItems.push({ id: tvShow.id, media_type: 'tv', currentEpisode: tvShow.currentEpisode, lastAccessed });
-            }
-          }
-
-          // Sort by lastAccessed timestamp (most recent first)
-          const ts = (d: any) => {
-            const t = Date.parse(d || '');
-            return Number.isFinite(t) ? t : 0;
-          };
-          allItems.sort((a, b) => ts(b.lastAccessed) - ts(a.lastAccessed));
-
-          // Fetch TMDB data for each item (uses in-memory cache)
-          const enrichedItems = await Promise.all(
-            allItems.map(async (item: any) => {
-              try {
-                const tmdbData = await fetchTMDBDetails(item.media_type, item.id);
-
-                const enrichedItem: ContinueWatching = {
-                  id: item.id,
-                  media_type: item.media_type,
-                  title: tmdbData.title || tmdbData.name || undefined,
-                  name: tmdbData.name || undefined,
-                  poster_path: tmdbData.poster_path || '',
-                  backdrop_path: tmdbData.backdrop_path || undefined,
-                  overview: tmdbData.overview || undefined,
-                  vote_average: tmdbData.vote_average || undefined,
-                  release_date: tmdbData.release_date || undefined,
-                  first_air_date: tmdbData.first_air_date || undefined,
-                  currentEpisode: item.currentEpisode,
-                  lastAccessed: item.lastAccessed
-                };
-                return enrichedItem;
-              } catch (error) {
-                console.error(`Error fetching TMDB data for ${item.media_type} ${item.id}:`, error);
-                return null;
-              }
-            })
-          );
-
-          // Filter out failed items and items without poster_path
-          const validItems = enrichedItems
-            .filter((item): item is ContinueWatching => item !== null)
-            .filter((item) => item.poster_path && typeof item.poster_path === 'string' && item.poster_path.trim() !== '');
-          setContinueWatching((validItems || []).map(normalizeHomeItem) as any);
-
-          if (validItems.length > 0) {
-            await fetchRecommendations(validItems);
-          }
-        } else {
+        if (allItems.length === 0) {
           setContinueWatching([]);
+          return;
+        }
+
+        const enrichedItems = await Promise.all(
+          allItems.map(async (item) => {
+            try {
+              const tmdbData = await fetchTMDBDetails(item.media_type, item.id);
+              const enrichedItem: ContinueWatching = {
+                id: item.id,
+                media_type: item.media_type,
+                title: tmdbData.title || tmdbData.name || undefined,
+                name: tmdbData.name || undefined,
+                poster_path: tmdbData.poster_path || '',
+                backdrop_path: tmdbData.backdrop_path || undefined,
+                overview: tmdbData.overview || undefined,
+                vote_average: tmdbData.vote_average || undefined,
+                release_date: tmdbData.release_date || undefined,
+                first_air_date: tmdbData.first_air_date || undefined,
+                currentEpisode: item.currentEpisode,
+                lastAccessed: item.lastAccessed,
+              };
+              return enrichedItem;
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        const validItems = enrichedItems
+          .filter((item): item is ContinueWatching => item !== null)
+          .filter((item) => item.poster_path && typeof item.poster_path === 'string' && item.poster_path.trim() !== '');
+
+        setContinueWatching((validItems || []).map(normalizeHomeItem) as any);
+
+        if (validItems.length > 0) {
+          await fetchRecommendations(validItems);
         }
       } catch (error) {
         console.error('Error loading continue watching items:', error);
@@ -842,34 +746,21 @@ const Home: React.FC = () => {
 
   const removeFromContinueWatching = useCallback((itemId: number, mediaType: string, skipConfirmation = false) => {
     if (skipConfirmation || window.confirm(t('home.confirmRemoveItem'))) {
-      const cwKey = profileStorageKey('continueWatching');
-      const continueWatching = JSON.parse(localStorage.getItem(cwKey) || '{"movies": [], "tv": []}');
-
-      // Ensure structure exists
-      if (!continueWatching.movies) continueWatching.movies = [];
-      if (!continueWatching.tv) continueWatching.tv = [];
-
-      if (mediaType === 'movie') {
-        // Handle both old format (number) and new format (object)
-        continueWatching.movies = continueWatching.movies.filter((item: any) => {
-          const movieId = typeof item === 'number' ? item : item.id;
-          return movieId !== itemId;
-        });
-      } else if (mediaType === 'tv') {
-        continueWatching.tv = continueWatching.tv.filter((tvShow: any) => tvShow.id !== itemId);
+      const activeProfile = getActiveProfile();
+      if (activeProfile && (mediaType === 'movie' || mediaType === 'tv')) {
+        removeFromHistory(activeProfile.id, mediaType, itemId).catch(() => {});
       }
-
-      localStorage.setItem(cwKey, JSON.stringify(continueWatching));
-
-      // Update the UI state
       setContinueWatching(prev => prev.filter(item => !(item.id === itemId && item.media_type === mediaType)));
     }
   }, [t]);
 
   const removeAllContinueWatching = useCallback(() => {
     if (window.confirm(t('home.confirmRemoveAll'))) {
-      localStorage.setItem(profileStorageKey('continueWatching'), JSON.stringify({ "movies": [], "tv": [] }));
       setContinueWatching([]);
+      const activeProfile = getActiveProfile();
+      if (activeProfile) {
+        clearAllHistory(activeProfile.id).catch(() => {});
+      }
     }
   }, [t]);
 
